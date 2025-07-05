@@ -1,13 +1,45 @@
 <?php
 
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\DanhMucController;
+use App\Http\Controllers\SanPhamController;
+use App\Http\Controllers\KhoController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/user', function (Request $request) {
-    return $request->user();
-})->middleware('auth:sanctum');
+// Auth routes
 Route::post('/auth/register', [AuthController::class, 'register']);
 Route::post('/auth/login', [AuthController::class, 'login']);
 Route::post('/auth/logout', [AuthController::class, 'logout']);
 
+// DanhMuc (Categories) CRUD routes
+Route::get('/danh-muc', [DanhMucController::class, 'index']); // Lấy danh sách danh mục
+Route::post('/danh-muc', [DanhMucController::class, 'store']); // Tạo danh mục
+Route::get('/danh-muc/{id}', [DanhMucController::class, 'show']); // Lấy chi tiết danh mục
+Route::post('/danh-muc/{id}', [DanhMucController::class, 'update']); // Cập nhật danh mục
+Route::delete('/danh-muc/{id}', [DanhMucController::class, 'destroy']); // Xóa danh mục
+
+// SanPham (Products) CRUD routes
+Route::get('/san-pham', [SanPhamController::class, 'index']); // Lấy danh sách sản phẩm
+Route::post('/san-pham', [SanPhamController::class, 'store']); // Tạo sản phẩm
+Route::get('/san-pham/{id}', [SanPhamController::class, 'show']); // Lấy chi tiết sản phẩm
+Route::post('/san-pham/{id}', [SanPhamController::class, 'update']); // Cập nhật sản phẩm
+Route::delete('/san-pham/{id}', [SanPhamController::class, 'destroy']); // Xóa sản phẩm
+
+// Additional route to get products by category
+Route::get('/danh-muc/{danhMucId}/san-pham', [SanPhamController::class, 'getByCategory']); // Lấy sản phẩm theo danh mục
+
+// Additional route to get products by warehouse
+Route::get('/san-pham/kho/{khoId}', [SanPhamController::class, 'getByWarehouse']); // Lấy sản phẩm theo kho
+
+// Kho (Warehouse) CRUD routes
+Route::get('/kho', [KhoController::class, 'index']); // Lấy danh sách kho
+Route::post('/kho', [KhoController::class, 'store']);
+Route::get('/kho/{id}', [KhoController::class, 'show']);
+Route::post('/kho/{id}', [KhoController::class, 'update']);
+Route::delete('/kho/{id}', [KhoController::class, 'destroy']);
+
+// Additional routes for warehouse management
+Route::get('/kho/{id}/san-pham', [KhoController::class, 'getSanPhams']); // Lấy sản phẩm theo kho
+Route::get('/kho/{id}/danh-muc', [KhoController::class, 'getDanhMucs']); // Lấy danh mục theo kho
+Route::get('/kho/{id}/thong-ke', [KhoController::class, 'getThongKe']); // Lấy thống kê theo kho

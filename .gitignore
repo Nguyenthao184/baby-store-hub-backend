@@ -17,3 +17,21 @@ yarn-error.log
 /.fleet
 /.idea
 /.vscode
+# Ignore storage except specific folders
+/storage/*
+!/storage/app
+!/storage/framework
+!/storage/framework/cache
+!/storage/framework/sessions
+!/storage/framework/views
+!/storage/logs
+
+# Ignore all files inside cache/sessions/views
+/storage/framework/cache/*
+!/storage/framework/cache/.gitignore
+
+/storage/framework/sessions/*
+!/storage/framework/sessions/.gitignore
+
+/storage/framework/views/*
+!/storage/framework/views/.gitignore

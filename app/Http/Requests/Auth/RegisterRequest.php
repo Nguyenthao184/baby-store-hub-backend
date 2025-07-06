@@ -28,7 +28,6 @@ class RegisterRequest extends FormRequest
             'sdt' => 'nullable|regex:/^[0-9]{10}$/',
             'diaChi' => 'nullable|string|max:255',
             'ngaySinh' => 'nullable|date',
-            'gioiTinh' => 'nullable|in:Nam,Nu,Khac'
         ];
     }
     public function messages()
@@ -41,7 +40,6 @@ class RegisterRequest extends FormRequest
             'password.min' => 'Mật khẩu ít nhất 6 ký tự',
             'password.confirmed' => 'Mật khẩu xác nhận không đúng',
             'hoTen.required' => 'Họ tên không được để trống',
-            'gioiTinh.in' => 'Giới tính không hợp lệ',
             'sdt.regex' => 'Số điện thoại phải gồm đúng 10 chữ số',
         ];
     }

@@ -55,3 +55,4 @@ Route::post('/ban-hang/tao-don', [DonHangController::class, 'taoDon']); //Tạo 
 Route::get('/ban-hang/khach-hang', [KhachHangController::class, 'timKiem']); //Tìm khách hàng
 Route::post('/ban-hang/them-khach-hang', [KhachHangController::class, 'themKhachHang']); //Thêm khách hàng
 Route::post('/thanh-toan', [DonHangController::class, 'thanhToan']); //Thanh toán
+});

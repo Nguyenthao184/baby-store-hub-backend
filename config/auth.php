@@ -40,6 +40,14 @@ return [
             'driver' => 'session',
             'provider' => 'users',
         ],
+        'api' => [
+            'driver' => 'sanctum',
+            'provider' => 'users',
+        ],
+         'authentication' => [
+            'driver' => 'session',
+            'provider' => 'authenticationprovider',
+        ],
     ],
 
     /*
@@ -64,7 +72,10 @@ return [
             'driver' => 'eloquent',
             'model' => env('AUTH_MODEL', App\Models\User::class),
         ],
-
+        'authenticationprovider' => [
+            'driver' => 'eloquent',
+            'model' => env('AUTH_MODEL', App\Models\TaiKhoan::class),
+        ],
         // 'users' => [
         //     'driver' => 'database',
         //     'table' => 'users',

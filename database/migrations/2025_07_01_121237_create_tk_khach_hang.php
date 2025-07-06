@@ -18,9 +18,7 @@ return new class extends Migration
             $table->string('email', 255)->nullable();
             $table->string('diaChi', 255)->nullable();
             $table->date('ngaySinh')->nullable();
-            $table->enum('gioiTinh', ['Nam', 'Nu', 'Khac'])->nullable();
            $table->unsignedBigInteger('taiKhoan_id');
-            $table->foreign('taiKhoan_id')->references('id')->on('TaiKhoan')->onDelete('cascade');
 
         });
     }

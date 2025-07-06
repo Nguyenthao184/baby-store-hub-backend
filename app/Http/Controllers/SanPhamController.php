@@ -330,4 +330,25 @@ class SanPhamController extends Controller
             ], 500);
         }
     }
+
+    public function search(Request $request)
+    {
+        try {
+            $q = $request->query('q');
+
+            $query = DB::table('SanPham')
+                ->where('tenSanPham', 'like', "%{$q}%")
+                ->orWhere('maSKU', 'like', "%{$q}%")
+                ->select('id', 'tenSanPham', 'maSKU', 'hinhAnh', 'moTa')
+                ->limit(20)
+                ->get();
+
+            return response()->json($query);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Lỗi: ' . $e->getMessage()
+            ], 500);
+        }        
+    }
 }

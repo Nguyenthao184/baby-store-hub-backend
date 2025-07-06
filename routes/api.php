@@ -4,6 +4,8 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\DanhMucController;
 use App\Http\Controllers\SanPhamController;
 use App\Http\Controllers\KhoController;
+use App\Http\Controllers\DonHangController;
+use App\Http\Controllers\KhachHangController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -12,6 +14,9 @@ Route::post('/auth/register', [AuthController::class, 'register']);
 Route::post('/auth/login', [AuthController::class, 'login']);
 Route::post('/auth/logout', [AuthController::class, 'logout']);
 
+
+
+Route::middleware(['authRole:Admin,QuanLyCuaHang'])->group(function () {
 // DanhMuc (Categories) CRUD routes
 Route::get('/danh-muc', [DanhMucController::class, 'index']); // Lấy danh sách danh mục
 Route::post('/danh-muc', [DanhMucController::class, 'store']); // Tạo danh mục
@@ -43,3 +48,10 @@ Route::delete('/kho/{id}', [KhoController::class, 'destroy']);
 Route::get('/kho/{id}/san-pham', [KhoController::class, 'getSanPhams']); // Lấy sản phẩm theo kho
 Route::get('/kho/{id}/danh-muc', [KhoController::class, 'getDanhMucs']); // Lấy danh mục theo kho
 Route::get('/kho/{id}/thong-ke', [KhoController::class, 'getThongKe']); // Lấy thống kê theo kho
+
+//DonHang (Products) CRUD routes
+Route::get('/ban-hang/san-pham', [SanPhamController::class, 'search']); //Tìm sản phẩm
+Route::post('/ban-hang/tao-don', [DonHangController::class, 'taoDon']); //Tạo đơn hàng
+Route::get('/ban-hang/khach-hang', [KhachHangController::class, 'timKiem']); //Tìm khách hàng
+Route::post('/ban-hang/them-khach-hang', [KhachHangController::class, 'themKhachHang']); //Thêm khách hàng
+Route::post('/thanh-toan', [DonHangController::class, 'thanhToan']); //Thanh toán

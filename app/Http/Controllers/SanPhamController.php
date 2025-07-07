@@ -55,6 +55,8 @@ class SanPhamController extends Controller
                 'tenSanPham' => $request->tenSanPham,
                 'maSKU' => $request->maSKU,
                 'VAT' => $request->VAT ?? 0,
+                'giaBan' => $request->giaBan ?? 0,
+                'soLuongTon' => $request->soLuongTon ?? 0,
                 'moTa' => $request->moTa,
                 'danhMuc_id' => $request->danhMuc_id,
                 'kho_id' => $request->kho_id,
@@ -145,7 +147,7 @@ class SanPhamController extends Controller
             $newKhoId = $request->kho_id;
 
             $updateData = $request->only([
-                'tenSanPham', 'maSKU', 'VAT', 'moTa', 'danhMuc_id', 'kho_id'
+                'tenSanPham', 'maSKU', 'VAT', 'giaBan','soLuongTon','moTa', 'danhMuc_id', 'kho_id'
             ]);
 
             // Xử lý upload hình ảnh mới

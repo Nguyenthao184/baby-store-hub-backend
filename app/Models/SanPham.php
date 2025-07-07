@@ -17,6 +17,8 @@ class SanPham extends Model
         'tenSanPham',
         'maSKU',
         'VAT',
+        'giaBan',
+        'soLuongTon',
         'moTa',
         'danhMuc_id',
         'kho_id',

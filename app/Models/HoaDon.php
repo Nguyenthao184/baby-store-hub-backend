@@ -20,4 +20,9 @@ class HoaDon extends Model
         'tongThanhToan',
         'phuongThucThanhToan',
     ];
+
+    public function donHang()
+    {
+        return $this->belongsTo(DonHang::class, 'donHang_id');
+    }
 }

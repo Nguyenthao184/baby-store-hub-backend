@@ -6,6 +6,9 @@ use App\Http\Controllers\SanPhamController;
 use App\Http\Controllers\KhoController;
 use App\Http\Controllers\DonHangController;
 use App\Http\Controllers\KhachHangController;
+use App\Http\Controllers\HoaDonController;
+
+
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -55,4 +58,12 @@ Route::post('/ban-hang/tao-don', [DonHangController::class, 'taoDon']); //Tạo 
 Route::get('/ban-hang/khach-hang', [KhachHangController::class, 'timKiem']); //Tìm khách hàng
 Route::post('/ban-hang/them-khach-hang', [KhachHangController::class, 'themKhachHang']); //Thêm khách hàng
 Route::post('/thanh-toan', [DonHangController::class, 'thanhToan']); //Thanh toán
+});
+
+//HoaDon
+Route::prefix('hoa-don')->group(function () {
+    Route::get('/', [HoaDonController::class, 'index']); // lọc & tìm kiếm
+    Route::put('/{id}', [HoaDonController::class, 'update']); // cập nhật
+    Route::get('/{id}', [HoaDonController::class, 'show']); // lấy chi tiết hóa đơn
+    Route::delete('/{id}', [HoaDonController::class, 'destroy']); // xóa
 });

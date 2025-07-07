@@ -18,7 +18,6 @@ class DonHangController extends Controller
         try {
             // 1. Tạo đơn hàng
             $donHang = DonHang::create([
-                'id' => Str::uuid(),
                 'maDonHang' => 'DH' . now()->format('YmdHis'),
                 'khachHang_id' => $request->khachHang_id,
                 'cuaHang_id' => $request->cuaHang_id,
@@ -49,7 +48,7 @@ class DonHangController extends Controller
                 'giamGiaSanPham' => $request->giamGia ?? 0,
                 'thueVAT' => 0,
                 'tongThanhToan' => $request->tongThanhToan,
-                'phuongThucThanhToan' => $request->phuongThuc ?? 'TienMat',
+                'phuongThucThanhToan' => $request->phuongThuc,
             ]);
 
             DB::commit();

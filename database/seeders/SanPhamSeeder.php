@@ -77,6 +77,8 @@ class SanPhamSeeder extends Seeder
                     'tenSanPham' => $product[0],
                     'maSKU' => strtoupper(Str::random(8)),
                     'VAT' => 8.00,
+                    'giaBan' => random_int(100000, 1000000),
+                     'soLuongTon' => random_int(10, 100),
                     'moTa' => 'Sản phẩm: ' . $product[0],
                     'danhMuc_id' => $danhMuc->id,
                     'kho_id' => $danhMuc->idKho,
@@ -99,31 +101,30 @@ class SanPhamSeeder extends Seeder
      * Cập nhật số lượng sản phẩm trong DanhMuc và Kho
      */
     protected function updateQuantities(): void
-    {
-        // Cập nhật số lượng trong DanhMuc
-        $danhMucCounts = DB::table('SanPham')
-            ->select('danhMuc_id', DB::raw('COUNT(*) as total'))
-            ->groupBy('danhMuc_id')
-            ->pluck('total', 'danhMuc_id')
-            ->toArray();
+{
+    // Tính tổng số lượng tồn cho mỗi danh mục
+    $danhMucCounts = DB::table('SanPham')
+        ->select('danhMuc_id', DB::raw('SUM(soLuongTon) as total'))
+        ->groupBy('danhMuc_id')
+        ->pluck('total', 'danhMuc_id');
 
-        foreach ($danhMucCounts as $danhMucId => $total) {
-            DB::table('DanhMuc')
-                ->where('id', $danhMucId)
-                ->update(['soLuongSanPham' => $total]);
-        }
-
-        // Cập nhật số lượng trong Kho
-        $khoCounts = DB::table('SanPham')
-            ->select('kho_id', DB::raw('COUNT(*) as total'))
-            ->groupBy('kho_id')
-            ->pluck('total', 'kho_id')
-            ->toArray();
-
-        foreach ($khoCounts as $khoId => $total) {
-            DB::table('Kho')
-                ->where('id', $khoId)
-                ->update(['soLuongSanPham' => $total]);
-        }
+    foreach ($danhMucCounts as $danhMucId => $total) {
+        DB::table('DanhMuc')->where('id', $danhMucId)->update([
+            'soLuongSanPham' => $total
+        ]);
     }
+
+    // Tính tổng số lượng tồn cho mỗi kho
+    $khoCounts = DB::table('SanPham')
+        ->select('kho_id', DB::raw('SUM(soLuongTon) as total'))
+        ->groupBy('kho_id')
+        ->pluck('total', 'kho_id');
+
+    foreach ($khoCounts as $khoId => $total) {
+        DB::table('Kho')->where('id', $khoId)->update([
+            'soLuongSanPham' => $total
+        ]);
+    }
+}
+
 }

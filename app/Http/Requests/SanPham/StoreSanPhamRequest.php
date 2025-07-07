@@ -25,6 +25,8 @@ class StoreSanPhamRequest extends FormRequest
             'tenSanPham' => 'required|string|max:255',
             'maSKU' => 'required|string|max:100|unique:SanPham,maSKU',
             'VAT' => 'nullable|numeric|min:0|max:100',
+            'giaBan' => 'required|numeric|min:0',
+            'soLuongTon' => 'required|integer|min:0',
             'moTa' => 'nullable|string',
             'danhMuc_id' => 'required|string|exists:DanhMuc,id',
             'kho_id' => 'nullable|string|exists:Kho,id',

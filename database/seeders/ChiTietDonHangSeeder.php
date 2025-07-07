@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Models\SanPham;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 
@@ -13,13 +14,14 @@ class ChiTietDonHangSeeder extends Seeder
     public function run(): void
     {
         $now = now();
+        $sanPham = SanPham::first();
 
         // Kiểm tra nếu chưa có dữ liệu mới insert
         if (DB::table('chitietdonhang')->count() === 0) {
             DB::table('chitietdonhang')->insert([
                 [
                     'donhang_id' => 1, // Đảm bảo DonHang ID=1 đã tồn tại
-                    'sanpham_id' => '06b49659-c830-492f-a818-dc181a92328c', // Thay bằng id thật từ bảng sanpham
+                    'sanpham_id' => $sanPham->id, // Thay bằng id thật từ bảng sanpham
                     'soLuong' => 2,
                     'giaBan' => 50000,
                     'giamGia' => 0,
@@ -27,7 +29,7 @@ class ChiTietDonHangSeeder extends Seeder
                 ],
                 [
                     'donhang_id' => 1,
-                    'sanpham_id' => '3aa7f77c-0057-43f8-9f3f-d5d29d65ca38',
+                    'sanpham_id' => $sanPham->id,
                     'soLuong' => 1,
                     'giaBan' => 80000,
                     'giamGia' => 0,

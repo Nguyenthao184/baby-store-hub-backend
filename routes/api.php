@@ -60,6 +60,10 @@ Route::post('/ban-hang/them-khach-hang', [KhachHangController::class, 'themKhach
 Route::post('/thanh-toan', [DonHangController::class, 'thanhToan']); //Thanh toán
 });
 
+//Khách hàng
+Route::get('/khach-hang', [KhachHangController::class, 'timKiem']);
+Route::post('/khach-hang', [KhachHangController::class, 'themKhachHang']);
+
 //HoaDon
 Route::prefix('hoa-don')->group(function () {
     Route::get('/', [HoaDonController::class, 'index']); // lọc & tìm kiếm

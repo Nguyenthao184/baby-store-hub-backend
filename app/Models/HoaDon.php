@@ -8,6 +8,8 @@ class HoaDon extends Model
 {
     protected $table = 'HoaDon';
     public $timestamps = false;
+    public $incrementing = false;
+    protected $keyType = 'string';
 
     protected $fillable = [
         'id',

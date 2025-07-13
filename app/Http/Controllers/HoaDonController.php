@@ -129,23 +129,23 @@ class HoaDonController extends Controller
 
     public function show($id)
     {
-        $hoaDon = HoaDon::with('donHang.khachHang')->findOrFail($id);
+        $hoaDon = HoaDon::with([
+            'donHang.khachHang',
+            'donHang.chiTietDonHang.sanPham'
+        ])->findOrFail($id);
         $donHang = $hoaDon->donHang;
 
-        $sanPhams = ChiTietDonHang::with('sanPham')
-            ->where('donHang_id', $donHang->id)
-            ->get()
-            ->map(function ($item) {
-                return [
-                    'id' => $item->sanPham->id,
-                    'tenSanPham' => $item->sanPham->ten,
-                    'soLuong' => $item->soLuong,
-                    'giaBan' => $item->giaBan,
-                    'giamGia' => $item->giamGia,
-                    'VAT' => 0.1,
-                    'tongTien' => $item->tongTien
-                ];
-            });
+        $sanPhams = $donHang->chiTietDonHang->map(function ($item) {
+            return [
+                'id' => $item->sanpham_id,
+                'tenSanPham' => $item->sanPham->ten ?? '',
+                'soLuong' => $item->soLuong,
+                'giaBan' => $item->giaBan,
+                'giamGia' => $item->giamGia,
+                'VAT' => $item->sanPham->VAT ?? 0,
+                'tongTien' => $item->tongTien
+            ];
+        });
 
         return response()->json([
             'success' => true,
@@ -158,10 +158,11 @@ class HoaDonController extends Controller
                     'giamGia' => $hoaDon->giamGiaSanPham,
                     'thueVAT' => $hoaDon->thueVAT,
                     'tongThanhToan' => $hoaDon->tongThanhToan,
+                    'ngayXuat' => $hoaDon->ngayXuat,
                 ],
                 'khachHang' => [
-                    'ten' => $donHang->khachHang->ten ?? 'Khách lẻ',
-                    'soDienThoai' => $donHang->khachHang->soDienThoai ?? '0123456789'
+                    'ten' => $donHang->khachHang->hoTen ?? 'Khách lẻ',
+                    'soDienThoai' => $donHang->khachHang->sdt ?? 'Không có'
                 ],
                 'trangThai' => $donHang->trangThai,
                 'ghiChu' => $donHang->ghiChu,
@@ -169,5 +170,6 @@ class HoaDonController extends Controller
             ]
         ]);
     }
+
 
 }

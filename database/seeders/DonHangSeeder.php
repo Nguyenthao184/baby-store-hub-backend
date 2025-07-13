@@ -2,10 +2,10 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Carbon\Carbon;
 
 class DonHangSeeder extends Seeder
 {
@@ -16,20 +16,29 @@ class DonHangSeeder extends Seeder
     {
         $now = now();
 
-        // Kiểm tra nếu chưa có dữ liệu mới insert
+        // Kiểm tra nếu đã có dữ liệu thì không làm gì
         if (DB::table('DonHang')->count() === 0) {
-            DB::table('DonHang')->insert([
-                [
-                    'id' => 1,
-                    'maDonHang' => 'DH' . $now->format('YmdHis'),
-                    'khachHang_id' => 1,         // đảm bảo đã có khách hàng id=1
-                    'cuaHang_id' => 1,           // đảm bảo đã có cửa hàng id=1
+            // Lấy id khách hàng và cửa hàng có sẵn
+            $khachHangIds = DB::table('KhachHang')->pluck('id')->toArray();
+            $cuaHangIds = DB::table('CuaHang')->pluck('id')->toArray();
+
+            $donHangs = [];
+
+            for ($i = 1; $i <= 10; $i++) {
+                $donHangs[] = [
+                    'maDonHang' => 'DH' . now()->format('YmdHis') . $i,
+                    'khachHang_id' => $khachHangIds[array_rand($khachHangIds)],
+                    'cuaHang_id' => $cuaHangIds[array_rand($cuaHangIds)],
                     'trangThai' => 'completed',
-                    'ngayTao' => $now,
+                    'ngayTao' => $now->copy()->subDays(rand(0, 10)),
                     'ngayCapNhat' => $now,
-                ],
-                // Thêm nhiều đơn hàng khác nếu muốn
-            ]);
+                    'ghiChu' => 'Đơn hàng số ' . $i,
+                    'voucher_id' => null,
+                    'donViVanChuyen_id' => null,
+                ];
+            }
+
+            DB::table('DonHang')->insert($donHangs);
         }
     }
 }

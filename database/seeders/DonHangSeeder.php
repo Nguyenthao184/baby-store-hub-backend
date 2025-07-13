@@ -17,7 +17,7 @@ class DonHangSeeder extends Seeder
         $now = now();
 
         // Kiểm tra nếu đã có dữ liệu thì không làm gì
-        if (DB::table('DonHang')->count() === 0) {
+        if (DB::table('donhang')->count() === 0) {
             // Lấy id khách hàng và cửa hàng có sẵn
             $khachHangIds = DB::table('KhachHang')->pluck('id')->toArray();
             $cuaHangIds = DB::table('CuaHang')->pluck('id')->toArray();
@@ -38,7 +38,7 @@ class DonHangSeeder extends Seeder
                 ];
             }
 
-            DB::table('DonHang')->insert($donHangs);
+            DB::table('donhang')->insert($donHangs);
         }
     }
 }

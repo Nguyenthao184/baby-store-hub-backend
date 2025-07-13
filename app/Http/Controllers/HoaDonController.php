@@ -26,7 +26,7 @@ class HoaDonController extends Controller
 
         // Lọc theo khoảng thời gian
         if ($request->filled('thoiGian')) {
-            $now = now();
+            $now = now()->startOfDay();
             switch ($request->thoiGian) {
                 case 'hom_nay':
                     $query->whereDate('ngayXuat', $now);
@@ -35,17 +35,25 @@ class HoaDonController extends Controller
                     $query->whereDate('ngayXuat', $now->copy()->subDay());
                     break;
                 case 'tuan_nay':
-                    $query->whereBetween('ngayXuat', [$now->startOfWeek(), $now->endOfWeek()]);
+                    $query->whereBetween('ngayXuat', [$now->copy()->startOfWeek(), $now->copy()->endOfWeek()]);
                     break;
                 case 'tuan_truoc':
-                    $query->whereBetween('ngayXuat', [$now->copy()->subWeek()->startOfWeek(), $now->copy()->subWeek()->endOfWeek()]);
+                    $query->whereBetween('ngayXuat', [
+                        $now->copy()->subWeek()->startOfWeek(),
+                        $now->copy()->subWeek()->endOfWeek()
+                    ]);
                     break;
                 case 'thang_nay':
-                    $query->whereMonth('ngayXuat', $now->month)->whereYear('ngayXuat', $now->year);
+                    $query->whereBetween('ngayXuat', [
+                        $now->copy()->startOfMonth(),
+                        $now->copy()->endOfMonth()
+                    ]);
                     break;
                 case 'thang_truoc':
-                    $lastMonth = $now->copy()->subMonth();
-                    $query->whereMonth('ngayXuat', $lastMonth->month)->whereYear('ngayXuat', $lastMonth->year);
+                    $query->whereBetween('ngayXuat', [
+                        $now->copy()->subMonth()->startOfMonth(),
+                        $now->copy()->subMonth()->endOfMonth()
+                    ]);
                     break;
             }
         }

@@ -50,7 +50,7 @@ class HoaDonController extends Controller
             }
         }
 
-        return response()->json($query->orderByDesc('ngayXuat')->paginate(10));
+        return response()->json($query->orderByDesc('ngayXuat')->get());
     }
 
     /**

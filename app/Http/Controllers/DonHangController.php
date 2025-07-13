@@ -16,6 +16,27 @@ class DonHangController extends Controller
         DB::beginTransaction();
 
         try {
+            // Map phương thức thanh toán từ frontend sang database enum
+            $phuongThucMap = [
+                'cash' => 'TienMat',
+                'bank' => 'ChuyenKhoan', 
+                'card' => 'The',
+                'TienMat' => 'TienMat',
+                'ChuyenKhoan' => 'ChuyenKhoan',
+                'The' => 'The'
+            ];
+
+            $phuongThucThanhToan = $phuongThucMap[$request->phuongThuc] ?? 'TienMat';
+
+            // Tính toán lại tổng tiền hàng và giảm giá
+            $tongTienHang = 0;
+            $tongGiamGia = 0;
+            
+            foreach ($request->sanPhams as $item) {
+                $tongTienHang += $item['giaBan'] * $item['soLuong'];
+                $tongGiamGia += ($item['giamGia'] ?? 0) * $item['soLuong'];
+            }
+
             // 1. Tạo đơn hàng
             $donHang = DonHang::create([
                 'maDonHang' => 'DH' . now()->format('YmdHis'),
@@ -28,13 +49,18 @@ class DonHangController extends Controller
 
             // 2. Lưu chi tiết sản phẩm
             foreach ($request->sanPhams as $item) {
+                $soLuong = $item['soLuong'];
+                $giaBan = $item['giaBan'];
+                $giamGia = $item['giamGia'] ?? 0;
+                $tongTien = $giaBan * $soLuong - $giamGia * $soLuong;
+
                 ChiTietDonHang::create([
                     'donHang_id' => $donHang->id,
                     'sanpham_id' => $item['id'],
-                    'soLuong' => $item['soLuong'],
-                    'giaBan' => $item['giaBan'],
-                    'giamGia' => $item['giamGia'] ?? 0,
-                    'tongTien' => $item['tongTien'],
+                    'soLuong' => $soLuong,
+                    'giaBan' => $giaBan,
+                    'giamGia' => $giamGia,
+                    'tongTien' => $tongTien,
                 ]);
             }
 
@@ -44,18 +70,22 @@ class DonHangController extends Controller
                 'maHoaDon' => 'HD' . now()->format('YmdHis'),
                 'donHang_id' => $donHang->id,
                 'ngayXuat' => now(),
-                'tongTienHang' => $request->tongTienHang,
-                'giamGiaSanPham' => $request->giamGia ?? 0,
+                'tongTienHang' => $tongTienHang,
+                'giamGiaSanPham' => $tongGiamGia,
                 'thueVAT' => 0,
-                'tongThanhToan' => $request->tongThanhToan,
-                'phuongThucThanhToan' => $request->phuongThuc,
+                'tongThanhToan' => $tongTienHang - $tongGiamGia,
+                'phuongThucThanhToan' => $phuongThucThanhToan,
             ]);
 
             DB::commit();
 
             return response()->json([
                 'message' => 'Thanh toán thành công',
-                'hoaDonId' => $hoaDon->id
+                'hoaDonId' => $hoaDon->id,
+                'phuongThucThanhToan' => $phuongThucThanhToan,
+                'tongTienHang' => $tongTienHang,
+                'giamGiaSanPham' => $tongGiamGia,
+                'tongThanhToan' => $tongTienHang - $tongGiamGia
             ]);
         } catch (\Exception $e) {
             DB::rollBack();

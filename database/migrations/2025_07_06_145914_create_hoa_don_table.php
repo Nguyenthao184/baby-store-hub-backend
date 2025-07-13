@@ -22,7 +22,6 @@ return new class extends Migration
             $table->decimal('tongThanhToan', 15, 2);
             $table->enum('phuongThucThanhToan', ['TienMat', 'ChuyenKhoan', 'The']);
             
-            $table->foreign('donHang_id')->references('id')->on('DonHang')->onDelete('cascade');
         });
     }
 

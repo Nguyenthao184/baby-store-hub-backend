@@ -17,23 +17,29 @@ class HoaDonSeeder extends Seeder
         $phuongThucs = ['TienMat', 'ChuyenKhoan', 'The'];
         $now = Carbon::now();
         $hoaDons = [];
+        $startIndex = 1;
+
+        DB::table('HoaDon')->truncate();
 
         foreach ($donHangs as $i => $donHang) {
             $chiTiets = ChiTietDonHang::where('donhang_id', $donHang->id)->get();
 
             if ($chiTiets->isEmpty()) continue;
 
-            $tongTienHang = $chiTiets->sum('tongTien');
+            $tongTienTruocVAT = $chiTiets->sum('tongTien');
             $giamGia = [0, 5000, 10000, 20000][rand(0, 3)];
-            $vat = 0.08 * ($tongTienHang - $giamGia);
-            $tongThanhToan = $tongTienHang - $giamGia + $vat;
+            $vat = 0.08 * $tongTienTruocVAT;
+
+            $tongTienHang = $tongTienTruocVAT + $vat;
+            $tongThanhToan = $tongTienHang - $giamGia;
+            $maHoaDon = 'HD' . str_pad($startIndex++, 6, '0', STR_PAD_LEFT);
 
             $hoaDons[] = [
                 'id' => (string) Str::uuid(),
-                'maHoaDon' => 'HD' . str_pad(rand(50, 9999), 6, '0', STR_PAD_LEFT),
+                'maHoaDon' => $maHoaDon,
                 'donHang_id' => $donHang->id,
                 'ngayXuat' => $now->copy()->subDays(rand(0, 10)),
-                'tongTienHang' => $tongTienHang,
+                'tongTienHang' => round($tongTienHang, 2),
                 'giamGiaSanPham' => $giamGia,
                 'thueVAT' => round($vat, 2),
                 'tongThanhToan' => round($tongThanhToan, 2),
@@ -41,7 +47,6 @@ class HoaDonSeeder extends Seeder
             ];
         }
 
-        DB::table('HoaDon')->truncate(); // Xóa cũ nếu cần
         DB::table('HoaDon')->insert($hoaDons);
     }
 }

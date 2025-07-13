@@ -65,9 +65,12 @@ class DonHangController extends Controller
             }
 
             // 3. Tạo hóa đơn
+            $lastMa = HoaDon::orderBy('maHoaDon', 'desc')->value('maHoaDon');
+            $nextSo = $lastMa ? intval(substr($lastMa, 2)) + 1 : 1;
+            $maHoaDon = 'HD' . str_pad($nextSo, 6, '0', STR_PAD_LEFT);
             $hoaDon = HoaDon::create([
                 'id' => Str::uuid(),
-                'maHoaDon' => 'HD' . now()->format('YmdHis'),
+                'maHoaDon' => $maHoaDon,
                 'donHang_id' => $donHang->id,
                 'ngayXuat' => now(),
                 'tongTienHang' => $tongTienHang,

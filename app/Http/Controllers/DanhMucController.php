@@ -121,7 +121,7 @@ class DanhMucController extends Controller
             }
 
             $updateData = $request->only([
-                'tenDanhMuc', 'moTa', 'soLuongSanPham', 'nhaCungCap', 'idKho'
+               'maDanhMuc', 'tenDanhMuc', 'moTa', 'soLuongSanPham', 'nhaCungCap', 'idKho'
             ]);
 
             // Xử lý upload hình ảnh mới

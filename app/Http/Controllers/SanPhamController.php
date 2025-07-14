@@ -147,7 +147,7 @@ class SanPhamController extends Controller
             $newKhoId = $request->kho_id;
 
             $updateData = $request->only([
-                'tenSanPham', 'maSKU', 'VAT', 'giaBan','soLuongTon','moTa', 'danhMuc_id', 'kho_id'
+                'maSanPham','tenSanPham', 'maSKU', 'VAT', 'giaBan','soLuongTon','moTa', 'danhMuc_id', 'kho_id'
             ]);
 
             // Xử lý upload hình ảnh mới
@@ -340,6 +340,7 @@ class SanPhamController extends Controller
 
             $query = DB::table('SanPham')
                 ->where('tenSanPham', 'like', "%{$q}%")
+                 ->orWhere('ma', 'like', "%{$q}%")
                 ->orWhere('maSKU', 'like', "%{$q}%")
                 ->select('id', 'tenSanPham', 'maSKU', 'hinhAnh', 'moTa')
                 ->limit(20)

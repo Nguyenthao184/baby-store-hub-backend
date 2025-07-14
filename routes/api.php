@@ -7,8 +7,7 @@ use App\Http\Controllers\KhoController;
 use App\Http\Controllers\DonHangController;
 use App\Http\Controllers\KhachHangController;
 use App\Http\Controllers\HoaDonController;
-
-
+use App\Http\Controllers\NhaCungCapController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -58,7 +57,6 @@ Route::post('/ban-hang/tao-don', [DonHangController::class, 'taoDon']); //Tạo 
 Route::get('/ban-hang/khach-hang', [KhachHangController::class, 'timKiem']); //Tìm khách hàng
 Route::post('/ban-hang/them-khach-hang', [KhachHangController::class, 'themKhachHang']); //Thêm khách hàng
 Route::post('/thanh-toan', [DonHangController::class, 'thanhToan']); //Thanh toán
-});
 
 //Khách hàng
 Route::get('/khach-hang', [KhachHangController::class, 'timKiem']);
@@ -71,3 +69,14 @@ Route::prefix('hoa-don')->group(function () {
     Route::get('/{id}', [HoaDonController::class, 'show']); // lấy chi tiết hóa đơn
     Route::delete('/{id}', [HoaDonController::class, 'destroy']); // xóa
 });
+
+//NCC () CRUD routes
+Route::get('/nha-cung-cap', [NhaCungCapController::class, 'index']); 
+Route::post('/nha-cung-cap', [NhaCungCapController::class, 'store']);
+Route::get('/nha-cung-cap/{id}', [NhaCungCapController::class, 'show']);
+Route::post('/nha-cung-cap/{id}', [NhaCungCapController::class, 'update']);
+Route::delete('/nha-cung-cap/{id}', [NhaCungCapController::class, 'destroy']);
+
+});
+
+

@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Models\NhaCungCap;
 use App\Models\User;
 // use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
@@ -30,5 +31,6 @@ class DatabaseSeeder extends Seeder
         $this->call(DonHangSeeder::class);
         $this->call(ChiTietDonHangSeeder::class);
         $this->call(HoaDonSeeder::class);
+        $this->call(NhaCungCapSeeder::class);
     }
 }

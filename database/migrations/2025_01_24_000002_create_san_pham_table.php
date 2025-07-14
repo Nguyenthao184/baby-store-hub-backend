@@ -13,11 +13,12 @@ return new class extends Migration
     {
         Schema::create('SanPham', function (Blueprint $table) {
             $table->string('id', 36)->primary();
+            $table->string('maSanPham', 20)->unique();
             $table->string('tenSanPham', 255);
             $table->string('maSKU', 100)->unique();
             $table->decimal('VAT', 5, 2)->default(0.00);
             $table->decimal('giaBan', 15, 2)->default(0.00);
-             $table->integer('soLuongTon')->default(0);
+             $table->integer('soLuong')->default(0);
             $table->text('moTa')->nullable();
             $table->string('danhMuc_id', 36);
             $table->string('kho_id', 36)->nullable();

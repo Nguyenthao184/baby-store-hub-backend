@@ -14,6 +14,7 @@ class DanhMuc extends Model
 
         protected $fillable = [
         'id',
+        'maDanhMuc',
         'tenDanhMuc',
         'moTa',
         'soLuongSanPham',
@@ -34,6 +35,11 @@ class DanhMuc extends Model
             if (empty($model->id)) {
                 $model->id = (string) Str::uuid();
             }
+            if (empty($model->maDanhMuc)) {
+            $latest = self::orderBy('maDanhMuc', 'desc')->first();
+            $nextNumber = $latest ? ((int)substr($latest->maDanhMuc, 2)) + 1 : 1;
+            $model->maDanhMuc = 'DM' . str_pad($nextNumber, 4, '0', STR_PAD_LEFT);
+        }
         });
     }
 

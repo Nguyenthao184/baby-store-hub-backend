@@ -14,11 +14,12 @@ class SanPham extends Model
 
     protected $fillable = [
         'id',
+        'maSanPham',
         'tenSanPham',
         'maSKU',
         'VAT',
         'giaBan',
-        'soLuongTon',
+        'soLuong',
         'moTa',
         'danhMuc_id',
         'kho_id',
@@ -44,6 +45,11 @@ class SanPham extends Model
             if (empty($model->ngayTao)) {
                 $model->ngayTao = now();
             }
+            if (empty($model->maSanPham)) {
+                $latest = self::orderBy('maSanPham', 'desc')->first();
+                $nextNumber = $latest ? ((int)substr($latest->maSanPham, 2)) + 1 : 1;
+                $model->maSanPham = 'SP' . str_pad($nextNumber, 4, '0', STR_PAD_LEFT);
+        }
         });
 
         static::updating(function ($model) {

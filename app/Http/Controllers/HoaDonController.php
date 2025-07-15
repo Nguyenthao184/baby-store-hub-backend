@@ -87,16 +87,54 @@ class HoaDonController extends Controller
                 'trangThai' => $request->trangThai ?? 'completed',
             ]);
 
-            // Xóa sản phẩm cũ
+            // Xóa sản phẩm cũ và cộng lại kho
             if ($request->has('xoaSanPhamIds')) {
+                $chiTiets = ChiTietDonHang::where('donHang_id', $donHang->id)
+                    ->whereIn('sanpham_id', $request->xoaSanPhamIds)
+                    ->get();
+
+                foreach ($chiTiets as $chiTiet) {
+                    $sanPham = SanPham::find($chiTiet->sanpham_id);
+                    if ($sanPham) {
+                        $sanPham->soLuong += $chiTiet->soLuong;
+                        $sanPham->save();
+                    }
+                }
+
                 ChiTietDonHang::where('donHang_id', $donHang->id)
                     ->whereIn('sanpham_id', $request->xoaSanPhamIds)
                     ->delete();
             }
 
-            // Thêm/cập nhật sản phẩm
+            // Cập nhật / thêm sản phẩm
             if ($request->has('sanPhams')) {
                 foreach ($request->sanPhams as $item) {
+                    $sanPham = SanPham::find($item['id']);
+                    if (!$sanPham) continue;
+
+                    $chiTietCu = ChiTietDonHang::where('donHang_id', $donHang->id)
+                        ->where('sanpham_id', $item['id'])
+                        ->first();
+
+                    $soLuongCu = $chiTietCu ? $chiTietCu->soLuong : 0;
+                    $soLuongMoi = $item['soLuong'];
+                    $chenhLech = $soLuongMoi - $soLuongCu;
+
+                    if ($chenhLech > 0) {
+                        if ($sanPham->soLuong < $chenhLech) {
+                            DB::rollBack();
+                            return response()->json([
+                                'error' => 'Không đủ hàng tồn kho cho sản phẩm ' . $sanPham->ten
+                            ], 400);
+                        }
+                        $sanPham->soLuong -= $chenhLech;
+                    } elseif ($chenhLech < 0) {
+                        $sanPham->soLuong += abs($chenhLech);
+                    }
+
+                    $sanPham->save();
+
+                    // Cập nhật sau khi xử lý kho
                     ChiTietDonHang::updateOrCreate(
                         [
                             'donHang_id' => $donHang->id,

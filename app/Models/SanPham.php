@@ -22,7 +22,7 @@ class SanPham extends Model
         'soLuong',
         'moTa',
         'danhMuc_id',
-        'kho_id',
+        //'kho_id',
         'hinhAnh',
         'ngayTao',
         'ngayCapNhat',
@@ -68,8 +68,8 @@ class SanPham extends Model
     /**
      * Relationship with Kho
      */
-    public function kho()
-    {
-        return $this->belongsTo(Kho::class, 'kho_id', 'id');
-    }
+    // public function kho()
+    // {
+    //     return $this->belongsTo(Kho::class, 'kho_id', 'id');
+    // }
 }

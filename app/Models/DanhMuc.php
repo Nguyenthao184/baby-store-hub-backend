@@ -20,7 +20,7 @@ class DanhMuc extends Model
         'soLuongSanPham',
         'hinhAnh',
         'nhaCungCap',
-        'idKho',
+        //'idKho',
     ];
 
     protected $casts = [
@@ -54,8 +54,8 @@ class DanhMuc extends Model
     /**
      * Relationship with Kho
      */
-    public function kho()
-    {
-        return $this->belongsTo(Kho::class, 'idKho', 'id');
-    }
+    // public function kho()
+    // {
+    //     return $this->belongsTo(Kho::class, 'idKho', 'id');
+    // }
 }

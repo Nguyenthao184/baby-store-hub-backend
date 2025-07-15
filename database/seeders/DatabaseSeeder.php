@@ -22,7 +22,7 @@ class DatabaseSeeder extends Seeder
         // ]);
 
         // Seed kho data
-        $this->call(KhoSeeder::class);
+        //$this->call(KhoSeeder::class);
         $this->call(TaiKhoanSeeder::class);
         $this->call(KhachHangSeeder::class);
         $this->call(DanhMucSeeder::class);
@@ -32,5 +32,7 @@ class DatabaseSeeder extends Seeder
         $this->call(ChiTietDonHangSeeder::class);
         $this->call(HoaDonSeeder::class);
         $this->call(NhaCungCapSeeder::class);
+        $this->call(PhieuNhapKhoSeeder::class);
+        $this->call(ChiTietPhieuNhapKhoSeeder::class);
     }
 }

@@ -40,16 +40,16 @@ Route::get('/danh-muc/{danhMucId}/san-pham', [SanPhamController::class, 'getByCa
 Route::get('/san-pham/kho/{khoId}', [SanPhamController::class, 'getByWarehouse']); // Lấy sản phẩm theo kho
 
 // Kho (Warehouse) CRUD routes
-Route::get('/kho', [KhoController::class, 'index']); // Lấy danh sách kho
-Route::post('/kho', [KhoController::class, 'store']);
-Route::get('/kho/{id}', [KhoController::class, 'show']);
-Route::post('/kho/{id}', [KhoController::class, 'update']);
-Route::delete('/kho/{id}', [KhoController::class, 'destroy']);
+// Route::get('/kho', [KhoController::class, 'index']); // Lấy danh sách kho
+// Route::post('/kho', [KhoController::class, 'store']);
+// Route::get('/kho/{id}', [KhoController::class, 'show']);
+// Route::post('/kho/{id}', [KhoController::class, 'update']);
+// Route::delete('/kho/{id}', [KhoController::class, 'destroy']);
 
-// Additional routes for warehouse management
-Route::get('/kho/{id}/san-pham', [KhoController::class, 'getSanPhams']); // Lấy sản phẩm theo kho
-Route::get('/kho/{id}/danh-muc', [KhoController::class, 'getDanhMucs']); // Lấy danh mục theo kho
-Route::get('/kho/{id}/thong-ke', [KhoController::class, 'getThongKe']); // Lấy thống kê theo kho
+// // Additional routes for warehouse management
+// Route::get('/kho/{id}/san-pham', [KhoController::class, 'getSanPhams']); // Lấy sản phẩm theo kho
+// Route::get('/kho/{id}/danh-muc', [KhoController::class, 'getDanhMucs']); // Lấy danh mục theo kho
+// Route::get('/kho/{id}/thong-ke', [KhoController::class, 'getThongKe']); // Lấy thống kê theo kho
 
 //DonHang (Products) CRUD routes
 Route::get('/ban-hang/san-pham', [SanPhamController::class, 'search']); //Tìm sản phẩm

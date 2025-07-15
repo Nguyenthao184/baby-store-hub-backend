@@ -87,7 +87,7 @@ class SanPhamSeeder extends Seeder
                     'soLuong' => random_int(10, 100),
                     'moTa' => 'Sản phẩm: ' . $product[0],
                     'danhMuc_id' => $danhMuc->id,
-                    'kho_id' => $danhMuc->idKho,
+                    //'kho_id' => $danhMuc->idKho,
                     'hinhAnh' => 'san_pham/' . $product[1],
                     'ngayTao' => $now,
                     'ngayCapNhat' => null,
@@ -124,15 +124,15 @@ class SanPhamSeeder extends Seeder
         }
 
         // Tính tổng số lượng tồn cho mỗi kho
-        $khoCounts = DB::table('SanPham')
-            ->select('kho_id', DB::raw('SUM(soLuong) as total'))
-            ->groupBy('kho_id')
-            ->pluck('total', 'kho_id');
+        // $khoCounts = DB::table('SanPham')
+        //     ->select('kho_id', DB::raw('SUM(soLuong) as total'))
+        //     ->groupBy('kho_id')
+        //     ->pluck('total', 'kho_id');
 
-        foreach ($khoCounts as $khoId => $total) {
-            DB::table('Kho')->where('id', $khoId)->update([
-                'soLuongSanPham' => $total
-            ]);
-        }
+        // foreach ($khoCounts as $khoId => $total) {
+        //     DB::table('Kho')->where('id', $khoId)->update([
+        //         'soLuongSanPham' => $total
+        //     ]);
+        // }
     }
 }

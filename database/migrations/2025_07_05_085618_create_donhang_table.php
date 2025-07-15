@@ -19,15 +19,11 @@ return new class extends Migration
             $table->unsignedBigInteger('khachHang_id');
             $table->enum('trangThai', ['draft', 'awaiting_payment', 'paid', 'shipping', 'completed', 'cancelled'])->nullable();
             $table->unsignedBigInteger('voucher_id')->nullable();
-            $table->unsignedBigInteger('cuaHang_id');
             $table->dateTime('ngayTao')->nullable();
             $table->dateTime('ngayCapNhat')->nullable();
             $table->text('ghiChu')->nullable();
             $table->unsignedBigInteger('donViVanChuyen_id')->nullable();
-            $table->foreign('khachHang_id')->references('id')->on('KhachHang')->onDelete('cascade');
-            $table->foreign('voucher_id')->references('id')->on('voucher')->onDelete('cascade');
-            $table->foreign('cuaHang_id')->references('id')->on('cuahang')->onDelete('cascade');
-            $table->foreign('donViVanChuyen_id')->references('id')->on('donvivanchuyen')->onDelete('cascade');
+          
         });
     }
 

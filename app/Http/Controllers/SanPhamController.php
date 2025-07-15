@@ -340,7 +340,7 @@ class SanPhamController extends Controller
 
             $query = DB::table('SanPham')
                 ->where('tenSanPham', 'like', "%{$q}%")
-                 ->orWhere('ma', 'like', "%{$q}%")
+                 ->orWhere('maSanPham', 'like', "%{$q}%")
                 ->orWhere('maSKU', 'like', "%{$q}%")
                 ->select('id', 'tenSanPham', 'maSKU', 'hinhAnh', 'moTa')
                 ->limit(20)

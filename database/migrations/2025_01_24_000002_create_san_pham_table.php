@@ -23,6 +23,7 @@ return new class extends Migration
             $table->string('danhMuc_id', 36);
             //$table->string('kho_id', 36)->nullable();
             $table->string('hinhAnh')->nullable();
+            $table->json('thongSoKyThuat')->nullable();
             $table->datetime('ngayTao');
             $table->datetime('ngayCapNhat')->nullable();
         });

@@ -20,7 +20,6 @@ class DonHangSeeder extends Seeder
         if (DB::table('donhang')->count() === 0) {
             // Lấy id khách hàng và cửa hàng có sẵn
             $khachHangIds = DB::table('KhachHang')->pluck('id')->toArray();
-            $cuaHangIds = DB::table('CuaHang')->pluck('id')->toArray();
 
             $donHangs = [];
 
@@ -28,7 +27,6 @@ class DonHangSeeder extends Seeder
                 $donHangs[] = [
                     'maDonHang' => 'DH' . now()->format('YmdHis') . $i,
                     'khachHang_id' => $khachHangIds[array_rand($khachHangIds)],
-                    'cuaHang_id' => $cuaHangIds[array_rand($cuaHangIds)],
                     'trangThai' => 'completed',
                     'ngayTao' => $now->copy()->subDays(rand(0, 10)),
                     'ngayCapNhat' => $now,

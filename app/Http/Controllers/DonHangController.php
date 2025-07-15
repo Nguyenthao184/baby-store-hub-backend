@@ -42,7 +42,6 @@ class DonHangController extends Controller
             $donHang = DonHang::create([
                 'maDonHang' => 'DH' . now()->format('YmdHis'),
                 'khachHang_id' => $request->khachHang_id,
-                'cuaHang_id' => $request->cuaHang_id,
                 'trangThai' => 'completed',
                 'ngayTao' => now(),
                 'ngayCapNhat' => now(),

@@ -20,7 +20,7 @@ class SanPhamController extends Controller
     public function index()
     {
         try {
-            $sanPhams = SanPham::with(['danhMuc', 'kho'])->get();
+            $sanPhams = SanPham::with(['danhMuc'])->get();
 
             return response()->json([
                 'success' => true,
@@ -59,7 +59,7 @@ class SanPhamController extends Controller
                 'soLuongTon' => $request->soLuongTon ?? 0,
                 'moTa' => $request->moTa,
                 'danhMuc_id' => $request->danhMuc_id,
-                'kho_id' => $request->kho_id,
+                //'kho_id' => $request->kho_id,
                 'hinhAnh' => $hinhAnhPath
             ]);
 
@@ -70,12 +70,12 @@ class SanPhamController extends Controller
             }
 
             // Tăng số lượng sản phẩm cho kho (nếu có)
-            if ($request->kho_id) {
-                $kho = Kho::find($request->kho_id);
-                if ($kho) {
-                    $kho->increment('soLuongSanPham');
-                }
-            }
+            // if ($request->kho_id) {
+            //     $kho = Kho::find($request->kho_id);
+            //     if ($kho) {
+            //         $kho->increment('soLuongSanPham');
+            //     }
+            // }
 
             DB::commit();
 
@@ -102,7 +102,7 @@ class SanPhamController extends Controller
     public function show(string $id)
     {
         try {
-            $sanPham = SanPham::with(['danhMuc', 'kho'])->find($id);
+            $sanPham = SanPham::with(['danhMuc'])->find($id);
 
             if (!$sanPham) {
                 return response()->json([
@@ -143,11 +143,11 @@ class SanPhamController extends Controller
 
             $oldDanhMucId = $sanPham->danhMuc_id;
             $newDanhMucId = $request->danhMuc_id;
-            $oldKhoId = $sanPham->kho_id;
-            $newKhoId = $request->kho_id;
+            // $oldKhoId = $sanPham->kho_id;
+            // $newKhoId = $request->kho_id;
 
             $updateData = $request->only([
-                'maSanPham','tenSanPham', 'maSKU', 'VAT', 'giaBan','soLuongTon','moTa', 'danhMuc_id', 'kho_id'
+                'maSanPham','tenSanPham', 'maSKU', 'VAT', 'giaBan','soLuongTon','moTa', 'danhMuc_id'
             ]);
 
             // Xử lý upload hình ảnh mới
@@ -179,26 +179,26 @@ class SanPhamController extends Controller
             }
 
             // Cập nhật số lượng sản phẩm cho kho khi thay đổi
-            if ($oldKhoId !== $newKhoId) {
-                // Giảm số lượng ở kho cũ
-                if ($oldKhoId) {
-                    $oldKho = Kho::find($oldKhoId);
-                    if ($oldKho && $oldKho->soLuongSanPham > 0) {
-                        $oldKho->decrement('soLuongSanPham');
-                    }
-                }
-                // Tăng số lượng ở kho mới
-                if ($newKhoId) {
-                    $newKho = Kho::find($newKhoId);
-                    if ($newKho) {
-                        $newKho->increment('soLuongSanPham');
-                    }
-                }
-            }
+            // if ($oldKhoId !== $newKhoId) {
+            //     // Giảm số lượng ở kho cũ
+            //     if ($oldKhoId) {
+            //         $oldKho = Kho::find($oldKhoId);
+            //         if ($oldKho && $oldKho->soLuongSanPham > 0) {
+            //             $oldKho->decrement('soLuongSanPham');
+            //         }
+            //     }
+            //     // Tăng số lượng ở kho mới
+            //     if ($newKhoId) {
+            //         $newKho = Kho::find($newKhoId);
+            //         if ($newKho) {
+            //             $newKho->increment('soLuongSanPham');
+            //         }
+            //     }
+            // }
 
             DB::commit();
 
-            $sanPham->load(['danhMuc', 'kho']);
+            $sanPham->load(['danhMuc']);
 
             return response()->json([
                 'success' => true,
@@ -232,7 +232,7 @@ class SanPhamController extends Controller
             }
 
             $danhMucId = $sanPham->danhMuc_id;
-            $khoId = $sanPham->kho_id;
+           // $khoId = $sanPham->kho_id;
 
             // Xóa hình ảnh nếu có
             if ($sanPham->hinhAnh && Storage::disk('public')->exists($sanPham->hinhAnh)) {
@@ -248,12 +248,12 @@ class SanPhamController extends Controller
             }
 
             // Giảm số lượng sản phẩm cho kho
-            if ($khoId) {
-                $kho = Kho::find($khoId);
-                if ($kho && $kho->soLuongSanPham > 0) {
-                    $kho->decrement('soLuongSanPham');
-                }
-            }
+            // if ($khoId) {
+            //     $kho = Kho::find($khoId);
+            //     if ($kho && $kho->soLuongSanPham > 0) {
+            //         $kho->decrement('soLuongSanPham');
+            //     }
+            // }
 
             DB::commit();
 
@@ -305,33 +305,33 @@ class SanPhamController extends Controller
     /**
      * Get products by warehouse
      */
-    public function getByWarehouse(string $khoId)
-    {
-        try {
-            $kho = Kho::find($khoId);
+    // public function getByWarehouse(string $khoId)
+    // {
+    //     try {
+    //         $kho = Kho::find($khoId);
 
-            if (!$kho) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Không tìm thấy kho'
-                ], 404);
-            }
+    //         if (!$kho) {
+    //             return response()->json([
+    //                 'success' => false,
+    //                 'message' => 'Không tìm thấy kho'
+    //             ], 404);
+    //         }
 
-            $sanPhams = SanPham::where('kho_id', $khoId)->with(['danhMuc', 'kho'])->get();
+    //         $sanPhams = SanPham::where('kho_id', $khoId)->with(['danhMuc', 'kho'])->get();
 
-            return response()->json([
-                'success' => true,
-                'message' => 'Lấy sản phẩm theo kho thành công',
-                'data' => $sanPhams
-            ], 200);
+    //         return response()->json([
+    //             'success' => true,
+    //             'message' => 'Lấy sản phẩm theo kho thành công',
+    //             'data' => $sanPhams
+    //         ], 200);
 
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Lỗi: ' . $e->getMessage()
-            ], 500);
-        }
-    }
+    //     } catch (\Exception $e) {
+    //         return response()->json([
+    //             'success' => false,
+    //             'message' => 'Lỗi: ' . $e->getMessage()
+    //         ], 500);
+    //     }
+    // }
 
     public function search(Request $request)
     {

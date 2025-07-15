@@ -18,7 +18,7 @@ class DanhMucController extends Controller
     public function index()
     {
         try {
-            $danhMucs = DanhMuc::with(['sanPhams', 'kho'])->get();
+            $danhMucs = DanhMuc::with(['sanPhams'])->get();
 
             return response()->json([
                 'success' => true,
@@ -55,7 +55,7 @@ class DanhMucController extends Controller
                 'soLuongSanPham' => $request->soLuongSanPham ?? 0,
                 'hinhAnh' => $hinhAnhPath,
                 'nhaCungCap' => $request->nhaCungCap,
-                'idKho' => $request->idKho
+               // 'idKho' => $request->idKho
             ]);
 
             DB::commit();
@@ -81,7 +81,7 @@ class DanhMucController extends Controller
     public function show(string $id)
     {
         try {
-            $danhMuc = DanhMuc::with(['sanPhams', 'kho'])->find($id);
+            $danhMuc = DanhMuc::with(['sanPhams'])->find($id);
 
             if (!$danhMuc) {
                 return response()->json([
@@ -121,7 +121,7 @@ class DanhMucController extends Controller
             }
 
             $updateData = $request->only([
-               'maDanhMuc', 'tenDanhMuc', 'moTa', 'soLuongSanPham', 'nhaCungCap', 'idKho'
+               'maDanhMuc', 'tenDanhMuc', 'moTa', 'soLuongSanPham', 'nhaCungCap'
             ]);
 
             // Xử lý upload hình ảnh mới

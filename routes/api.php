@@ -8,6 +8,7 @@ use App\Http\Controllers\DonHangController;
 use App\Http\Controllers\KhachHangController;
 use App\Http\Controllers\HoaDonController;
 use App\Http\Controllers\NhaCungCapController;
+use App\Http\Controllers\PhieuKiemKhoController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -18,7 +19,7 @@ Route::post('/auth/logout', [AuthController::class, 'logout']);
 
 
 
-Route::middleware(['authRole:Admin,QuanLyCuaHang'])->group(function () {
+Route::middleware(['auth:taikhoan','authRole:Admin,QuanLyCuaHang'])->group(function () {
 // DanhMuc (Categories) CRUD routes
 Route::get('/danh-muc', [DanhMucController::class, 'index']); // Lấy danh sách danh mục
 Route::post('/danh-muc', [DanhMucController::class, 'store']); // Tạo danh mục
@@ -77,6 +78,16 @@ Route::get('/nha-cung-cap/{id}', [NhaCungCapController::class, 'show']);
 Route::post('/nha-cung-cap/{id}', [NhaCungCapController::class, 'update']);
 Route::delete('/nha-cung-cap/{id}', [NhaCungCapController::class, 'destroy']);
 
+//PhieuKiemKho
+Route::get('/phieu-kiem-kho', [PhieuKiemKhoController::class, 'index']);
+Route::get('/phieu-kiem-kho/{id}', [PhieuKiemKhoController::class, 'show']);
+Route::post('/phieu-kiem-kho', [PhieuKiemKhoController::class, 'store']);
+// Route::post('/phieu-kiem-kho/{id}', [PhieuKiemKhoController::class, 'update']);
+// Route::delete('/phieu-kiem-kho/{id}', [PhieuKiemKhoController::class, 'destroy']);
+
+Route::post('/phieu-kiem-kho/{id}/add-detail', [PhieuKiemKhoController::class, 'addDetail']);
+// Route::delete('/phieu-kiem-kho/chi-tiet/{id}', [PhieuKiemKhoController::class, 'deleteDetail']);
+Route::post('/phieu-kiem-kho/{id}/can-bang', [PhieuKiemKhoController::class, 'canBang']);
 });
 
 

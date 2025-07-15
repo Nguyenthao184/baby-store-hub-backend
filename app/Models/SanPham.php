@@ -32,6 +32,7 @@ class SanPham extends Model
         'VAT' => 'decimal:2',
         'ngayTao' => 'datetime',
         'ngayCapNhat' => 'datetime',
+        'thongSoKyThuat' => 'array',
     ];
 
     protected static function boot()

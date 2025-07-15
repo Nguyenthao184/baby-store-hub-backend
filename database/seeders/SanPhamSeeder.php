@@ -68,7 +68,7 @@ class SanPhamSeeder extends Seeder
 
         $sanPhamData = [];
         $index = 0;
-        $counter = 1; 
+        $counter = 1;
 
         foreach ($danhMucList as $danhMuc) {
             for ($i = 0; $i < 4; $i++) {
@@ -77,9 +77,12 @@ class SanPhamSeeder extends Seeder
                 // Sinh mã SP0001, SP0002...
                 $maSanPham = 'SP' . str_pad($counter, 4, '0', STR_PAD_LEFT);
 
+                // Tạo thông số kỹ thuật phù hợp từng nhóm
+                $thongSoKyThuat = $this->generateThongSo($product[0]);
+
                 $sanPhamData[] = [
                     'id' => (string) Str::uuid(),
-                    'maSanPham' => $maSanPham, 
+                    'maSanPham' => $maSanPham,
                     'tenSanPham' => $product[0],
                     'maSKU' => strtoupper(Str::random(8)),
                     'VAT' => 8.00,
@@ -87,8 +90,8 @@ class SanPhamSeeder extends Seeder
                     'soLuong' => random_int(10, 100),
                     'moTa' => 'Sản phẩm: ' . $product[0],
                     'danhMuc_id' => $danhMuc->id,
-                    //'kho_id' => $danhMuc->idKho,
                     'hinhAnh' => 'san_pham/' . $product[1],
+                    'thongSoKyThuat' => $thongSoKyThuat,
                     'ngayTao' => $now,
                     'ngayCapNhat' => null,
                 ];
@@ -98,22 +101,138 @@ class SanPhamSeeder extends Seeder
             }
         }
 
-
         // Insert tất cả
-        DB::table('SanPham')->insert($sanPhamData);
+        foreach ($sanPhamData as $data) {
+            \App\Models\SanPham::create($data);
+        }
 
         // Gọi hàm cập nhật số lượng
         $this->updateQuantities();
     }
 
-    /**
-     * Cập nhật số lượng sản phẩm trong DanhMuc và Kho
-     */
+    protected function generateThongSo(string $tenSanPham): array
+    {
+        // Nhóm Sữa
+        if (str_contains($tenSanPham, 'Sữa')) {
+            return [
+                'Độ tuổi' => '2 - 6 tuổi',
+                'Khối lượng' => '800g',
+                'Hạn sử dụng' => '18 tháng',
+                'Nơi sản xuất' => 'Singapore',
+                'Nhiệt độ pha' => '37 - 40°C',
+                'Đặc tính' => ['Tăng đề kháng', 'Phát triển chiều cao'],
+            ];
+        }
+
+        // Nhóm Bỉm, Tã
+        if (str_contains($tenSanPham, 'Bỉm') || str_contains($tenSanPham, 'Tã')) {
+            return [
+                'Size' => 'XL',
+                'Cân nặng' => '12 - 17 kg',
+                'Hạn sử dụng' => '36 tháng',
+                'Chất liệu' => ['Hạt Polymer', 'Sợi tre'],
+                'Mùi hương' => 'Không mùi',
+                'Tiện ích' => ['Vạch báo đầy', 'Băng dính cuộn'],
+            ];
+        }
+
+        // Nhóm Thực phẩm - Đồ uống
+        if (
+            str_contains($tenSanPham, 'Bột') ||
+            str_contains($tenSanPham, 'Cháo') ||
+            str_contains($tenSanPham, 'Nước') ||
+            str_contains($tenSanPham, 'Súp')
+        ) {
+            return [
+                'Khối lượng' => '200g',
+                'Hạn sử dụng' => '12 tháng',
+                'Hướng dẫn bảo quản' => 'Nơi khô ráo, thoáng mát',
+                'Thành phần' => ['Ngũ cốc', 'Vitamin'],
+            ];
+        }
+
+        // Nhóm Sức khỏe & Vitamin
+        if (
+            str_contains($tenSanPham, 'Vitamin') ||
+            str_contains($tenSanPham, 'Siro') ||
+            str_contains($tenSanPham, 'Men') ||
+            str_contains($tenSanPham, 'DHA')
+        ) {
+            return [
+                'Dung tích' => '100ml',
+                'Hạn sử dụng' => '24 tháng',
+                'Đối tượng sử dụng' => 'Trẻ từ 1 tuổi',
+                'Hướng dẫn bảo quản' => 'Nơi mát, tránh ánh nắng',
+            ];
+        }
+
+        // Nhóm Mỹ phẩm
+        if (
+            str_contains($tenSanPham, 'Kem') ||
+            str_contains($tenSanPham, 'Sữa tắm') ||
+            str_contains($tenSanPham, 'Dầu')
+        ) {
+            return [
+                'Dung tích' => '200ml',
+                'Hạn sử dụng' => '36 tháng',
+                'Thành phần' => ['Chiết xuất thiên nhiên'],
+                'Công dụng' => 'Dưỡng ẩm & bảo vệ da',
+            ];
+        }
+
+        // Nhóm Đồ dùng - Gia dụng
+        if (
+            str_contains($tenSanPham, 'Bình') ||
+            str_contains($tenSanPham, 'Máy') ||
+            str_contains($tenSanPham, 'Ghế') ||
+            str_contains($tenSanPham, 'Nhiệt kế')
+        ) {
+            return [
+                'Chất liệu' => 'Nhựa cao cấp',
+                'Xuất xứ' => 'Nhật Bản',
+                'Bảo hành' => '12 tháng',
+            ];
+        }
+
+        // Nhóm Thời trang - Phụ kiện
+        if (
+            str_contains($tenSanPham, 'Bộ quần áo') ||
+            str_contains($tenSanPham, 'Mũ') ||
+            str_contains($tenSanPham, 'Vớ') ||
+            str_contains($tenSanPham, 'Yếm')
+        ) {
+            return [
+                'Size' => 'Free Size',
+                'Chất liệu' => 'Cotton 100%',
+                'Màu sắc' => 'Nhiều màu',
+            ];
+        }
+
+        // Nhóm Đồ chơi - Học tập
+        if (
+            str_contains($tenSanPham, 'Đồ chơi') ||
+            str_contains($tenSanPham, 'Xe') ||
+            str_contains($tenSanPham, 'Bảng')
+        ) {
+            return [
+                'Độ tuổi phù hợp' => '6 tháng - 5 tuổi',
+                'Chất liệu' => 'Nhựa an toàn',
+                'Xuất xứ' => 'Việt Nam',
+            ];
+        }
+
+        // Mặc định
+        return [
+            'Thông số' => 'Đang cập nhật',
+        ];
+    }
+
+
     protected function updateQuantities(): void
     {
         // Tính tổng số lượng tồn cho mỗi danh mục
         $danhMucCounts = DB::table('SanPham')
-            ->select('danhMuc_id', DB::raw('SUM(soLuong) as total'))
+            ->select('danhMuc_id', DB::raw('COUNT(soLuong) as total'))
             ->groupBy('danhMuc_id')
             ->pluck('total', 'danhMuc_id');
 
@@ -122,17 +241,5 @@ class SanPhamSeeder extends Seeder
                 'soLuongSanPham' => $total
             ]);
         }
-
-        // Tính tổng số lượng tồn cho mỗi kho
-        // $khoCounts = DB::table('SanPham')
-        //     ->select('kho_id', DB::raw('SUM(soLuong) as total'))
-        //     ->groupBy('kho_id')
-        //     ->pluck('total', 'kho_id');
-
-        // foreach ($khoCounts as $khoId => $total) {
-        //     DB::table('Kho')->where('id', $khoId)->update([
-        //         'soLuongSanPham' => $total
-        //     ]);
-        // }
     }
 }

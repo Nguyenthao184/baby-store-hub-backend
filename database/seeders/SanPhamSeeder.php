@@ -87,7 +87,7 @@ class SanPhamSeeder extends Seeder
                     'maSKU' => strtoupper(Str::random(8)),
                     'VAT' => 8.00,
                     'giaBan' => random_int(100000, 1000000),
-                    'soLuong' => random_int(10, 100),
+                    'soLuongTon' => random_int(10, 100),
                     'moTa' => 'Sản phẩm: ' . $product[0],
                     'danhMuc_id' => $danhMuc->id,
                     'hinhAnh' => 'san_pham/' . $product[1],

@@ -232,7 +232,7 @@ class SanPhamSeeder extends Seeder
     {
         // Tính tổng số lượng tồn cho mỗi danh mục
         $danhMucCounts = DB::table('SanPham')
-            ->select('danhMuc_id', DB::raw('COUNT(soLuong) as total'))
+            ->select('danhMuc_id', DB::raw('COUNT(soLuongTon) as total'))
             ->groupBy('danhMuc_id')
             ->pluck('total', 'danhMuc_id');
 

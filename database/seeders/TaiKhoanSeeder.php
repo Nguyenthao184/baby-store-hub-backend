@@ -17,25 +17,25 @@ class TaiKhoanSeeder extends Seeder
          DB::table('TaiKhoan')->insert([
             [
                 'email' => 'admin@example.com',
-                'password' => Hash::make('password'),
+                'matKhau' => Hash::make('password'),
                 'vaiTro' => 'Admin',
                 'trangThai' => true
             ],
             [
                 'email' => 'quanly@example.com',
-                'password' => Hash::make('password'),
+                'matKhau' => Hash::make('password'),
                 'vaiTro' => 'QuanLyCuaHang',
                 'trangThai' => true
             ],
             [
                 'email' => 'nhanvien@example.com',
-                'password' => Hash::make('password'),
+                'matKhau' => Hash::make('password'),
                 'vaiTro' => 'NhanVien',
                 'trangThai' => true
             ],
             [
                 'email' => 'khach@example.com',
-                'password' => Hash::make('password'),
+                'matKhau' => Hash::make('password'),
                 'vaiTro' => 'KhachHang',
                 'trangThai' => true
             ],

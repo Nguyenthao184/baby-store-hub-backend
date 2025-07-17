@@ -8,7 +8,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use App\Http\Requests\PhieuKiemKho\StorePhieuKiemKhoRequest;
 use App\Http\Requests\PhieuKiemKho\StoreChiTietPhieuKiemKhoRequest;
-
+use Illuminate\Support\Facades\Auth;
 
 class PhieuKiemKhoController extends Controller
 {
@@ -31,7 +31,7 @@ class PhieuKiemKhoController extends Controller
     public function store(StorePhieuKiemKhoRequest $request)
     {
 
-        $user = auth('taikhoan')->user();
+        $user = Auth::guard('sanctum')->user();
         if (!$user) {
             return response()->json([
                 'success' => false,

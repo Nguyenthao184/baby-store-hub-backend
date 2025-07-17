@@ -20,7 +20,7 @@ Route::post('/auth/logout', [AuthController::class, 'logout']);
 
 
 
-Route::middleware(['auth:taikhoan','authRole:Admin,QuanLyCuaHang'])->group(function () {
+Route::middleware(['authRole:Admin,QuanLyCuaHang'])->group(function () {
 // DanhMuc (Categories) CRUD routes
 Route::get('/danh-muc', [DanhMucController::class, 'index']); // Lấy danh sách danh mục
 Route::post('/danh-muc', [DanhMucController::class, 'store']); // Tạo danh mục
@@ -90,15 +90,6 @@ Route::post('/phieu-kiem-kho/{id}/add-detail', [PhieuKiemKhoController::class, '
 // Route::delete('/phieu-kiem-kho/chi-tiet/{id}', [PhieuKiemKhoController::class, 'deleteDetail']);
 Route::post('/phieu-kiem-kho/{id}/can-bang', [PhieuKiemKhoController::class, 'canBang']);
 
-Route::prefix('phieu-nhap-kho')->group(function () {    
-    Route::get('/', [PhieuNhapKhoController::class, 'index']); // Danh sách tất cả phiếu nhập (kèm chi tiết)    
-    Route::get('/loc', [PhieuNhapKhoController::class, 'loc']); //lọc
-    Route::post('/', [PhieuNhapKhoController::class, 'store']); // Tạo mới phiếu nhập (phiếu tạm hoặc đã nhập)
-    Route::get('/{id}', [PhieuNhapKhoController::class, 'show']); // Lấy chi tiết 1 phiếu nhập
-    Route::put('/{id}', [PhieuNhapKhoController::class, 'update']); // Cập nhật phiếu nhập (chỉ khi là phiếu tạm)
-    Route::post('/{id}/xac-nhan', [PhieuNhapKhoController::class, 'xacNhanNhapKho']); // Xác nhận nhập kho (cộng vào tồn kho, chuyển trạng thái)
-    Route::delete('/{id}', [PhieuNhapKhoController::class, 'destroy']); // Xóa phiếu nhập (chỉ được xóa nếu là phiếu tạm)   
-});
 
 });
 

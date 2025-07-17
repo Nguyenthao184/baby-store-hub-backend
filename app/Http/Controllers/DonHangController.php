@@ -70,14 +70,14 @@ class DonHangController extends Controller
                     return response()->json(['error' => 'Không tìm thấy sản phẩm.'], 404);
                 }
 
-                if ($sanPham->soLuong < $soLuong) {
+                if ($sanPham->soLuongTon < $soLuong) {
                     DB::rollBack();
                     return response()->json([
                         'error' => 'Không đủ hàng tồn kho cho sản phẩm ' . $sanPham->ten
                     ], 400);
                 }
 
-                $sanPham->soLuong -= $soLuong;
+                $sanPham->soLuongTon -= $soLuong;
                 $sanPham->save();
             }
 

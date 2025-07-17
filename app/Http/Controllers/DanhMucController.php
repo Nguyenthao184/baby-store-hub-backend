@@ -18,7 +18,13 @@ class DanhMucController extends Controller
     public function index()
     {
         try {
-            $danhMucs = DanhMuc::with(['sanPhams'])->get();
+            $danhMucs = DB::table('DanhMuc')
+                ->leftJoin('NhaCungCap', 'DanhMuc.nhaCungCap', '=', 'NhaCungCap.id')
+                ->select(
+                    'DanhMuc.*',
+                    'NhaCungCap.tenNhaCungCap as tenNhaCungCap'
+                )
+                ->get();
 
             return response()->json([
                 'success' => true,
@@ -32,6 +38,7 @@ class DanhMucController extends Controller
             ], 500);
         }
     }
+
 
     /**
      * Store a newly created resource in storage.
@@ -55,7 +62,7 @@ class DanhMucController extends Controller
                 'soLuongSanPham' => $request->soLuongSanPham ?? 0,
                 'hinhAnh' => $hinhAnhPath,
                 'nhaCungCap' => $request->nhaCungCap,
-               // 'idKho' => $request->idKho
+                // 'idKho' => $request->idKho
             ]);
 
             DB::commit();
@@ -65,7 +72,6 @@ class DanhMucController extends Controller
                 'message' => 'Tạo danh mục thành công',
                 'data' => $danhMuc
             ], 201);
-
         } catch (\Exception $e) {
             DB::rollBack();
             return response()->json([
@@ -81,7 +87,14 @@ class DanhMucController extends Controller
     public function show(string $id)
     {
         try {
-            $danhMuc = DanhMuc::with(['sanPhams'])->find($id);
+            $danhMuc = DB::table('DanhMuc')
+                ->leftJoin('NhaCungCap', 'DanhMuc.nhaCungCap', '=', 'NhaCungCap.id')
+                ->select(
+                    'DanhMuc.*',
+                    'NhaCungCap.tenNhaCungCap as tenNhaCungCap'
+                )
+                ->where('DanhMuc.id', $id)
+                ->first();
 
             if (!$danhMuc) {
                 return response()->json([
@@ -95,7 +108,6 @@ class DanhMucController extends Controller
                 'message' => 'Lấy thông tin danh mục thành công',
                 'data' => $danhMuc
             ], 200);
-
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
@@ -103,6 +115,7 @@ class DanhMucController extends Controller
             ], 500);
         }
     }
+
 
     /**
      * Update the specified resource in storage.
@@ -121,7 +134,11 @@ class DanhMucController extends Controller
             }
 
             $updateData = $request->only([
-               'maDanhMuc', 'tenDanhMuc', 'moTa', 'soLuongSanPham', 'nhaCungCap'
+                'maDanhMuc',
+                'tenDanhMuc',
+                'moTa',
+                'soLuongSanPham',
+                'nhaCungCap'
             ]);
 
             // Xử lý upload hình ảnh mới
@@ -147,7 +164,6 @@ class DanhMucController extends Controller
                 'message' => 'Cập nhật danh mục thành công',
                 'data' => $danhMuc
             ], 200);
-
         } catch (\Exception $e) {
             DB::rollBack();
             return response()->json([
@@ -193,7 +209,6 @@ class DanhMucController extends Controller
                 'success' => true,
                 'message' => 'Xóa danh mục thành công'
             ], 200);
-
         } catch (\Exception $e) {
             DB::rollBack();
             return response()->json([

@@ -17,7 +17,11 @@ use Illuminate\Support\Facades\Route;
 Route::post('/auth/register', [AuthController::class, 'register']);
 Route::post('/auth/login', [AuthController::class, 'login']);
 Route::post('/auth/logout', [AuthController::class, 'logout']);
-
+Route::get('khachHang/san-pham', [SanPhamController::class, 'index']); // Lấy danh sách sản phẩm
+Route::get('khachHang/danh-muc', [DanhMucController::class, 'index']); // Lấy danh sách danh mục
+Route::get('khachHang/danh-muc/{danhMucId}/san-pham', [SanPhamController::class, 'getByCategory']); // Lấy sản phẩm theo danh mục
+Route::get('khachHang/san-pham/{id}', [SanPhamController::class, 'show']); // Lấy chi tiết sản phẩm
+Route::post('/khachHang/san-pham/tim-kiem', [SanPhamController::class, 'search']); //Tìm sản phẩm
 
 
 Route::middleware(['authRole:Admin,QuanLyCuaHang'])->group(function () {
@@ -34,6 +38,7 @@ Route::post('/san-pham', [SanPhamController::class, 'store']); // Tạo sản ph
 Route::get('/san-pham/{id}', [SanPhamController::class, 'show']); // Lấy chi tiết sản phẩm
 Route::post('/san-pham/{id}', [SanPhamController::class, 'update']); // Cập nhật sản phẩm
 Route::delete('/san-pham/{id}', [SanPhamController::class, 'destroy']); // Xóa sản phẩm
+Route::post('/san-pham/change-noi-bat/{id}', [SanPhamController::class, 'changeNoiBat']); // Thay đổi trạng thái nổi bật của sản phẩm
 
 // Additional route to get products by category
 Route::get('/danh-muc/{danhMucId}/san-pham', [SanPhamController::class, 'getByCategory']); // Lấy sản phẩm theo danh mục
@@ -54,7 +59,7 @@ Route::get('/san-pham/kho/{khoId}', [SanPhamController::class, 'getByWarehouse']
 // Route::get('/kho/{id}/thong-ke', [KhoController::class, 'getThongKe']); // Lấy thống kê theo kho
 
 //DonHang (Products) CRUD routes
-Route::get('/ban-hang/san-pham', [SanPhamController::class, 'search']); //Tìm sản phẩm
+Route::post('/ban-hang/san-pham', [SanPhamController::class, 'search']); //Tìm sản phẩm
 Route::post('/ban-hang/tao-don', [DonHangController::class, 'taoDon']); //Tạo đơn hàng
 Route::get('/ban-hang/khach-hang', [KhachHangController::class, 'timKiem']); //Tìm khách hàng
 Route::post('/ban-hang/them-khach-hang', [KhachHangController::class, 'themKhachHang']); //Thêm khách hàng
@@ -73,7 +78,7 @@ Route::prefix('hoa-don')->group(function () {
 });
 
 //NCC () CRUD routes
-Route::get('/nha-cung-cap', [NhaCungCapController::class, 'index']); 
+Route::get('/nha-cung-cap', [NhaCungCapController::class, 'index']);
 Route::post('/nha-cung-cap', [NhaCungCapController::class, 'store']);
 Route::get('/nha-cung-cap/{id}', [NhaCungCapController::class, 'show']);
 Route::post('/nha-cung-cap/{id}', [NhaCungCapController::class, 'update']);

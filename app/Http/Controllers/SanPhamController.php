@@ -343,13 +343,21 @@ class SanPhamController extends Controller
     public function search(Request $request)
     {
         try {
-            $q = $request->query('q');
 
+            $noiDungTim = '%' . $request->noiDungTim . '%';
+            if ($noiDungTim === '') {
+                return response()->json([
+                    'status' => false,
+                    'message' => 'Vui lòng nhập nội dung tìm kiếm'
+                ])->setStatusCode(400);
+            }
             $query = DB::table('SanPham')
-                ->where('tenSanPham', 'like', "%{$q}%")
-                ->orWhere('maSanPham', 'like', "%{$q}%")
-                ->orWhere('maSKU', 'like', "%{$q}%")
-                ->select('id', 'tenSanPham', 'maSKU', 'hinhAnh', 'moTa')
+                ->where(function ($subQuery) use ($noiDungTim) {
+                    $subQuery->where('tenSanPham', 'like', $noiDungTim)
+                        ->orWhere('maSanPham', 'like', $noiDungTim)
+                        ->orWhere('maSKU', 'like', $noiDungTim);
+                })
+                ->select('id', 'tenSanPham', 'maSKU', 'hinhAnh', 'moTa', 'giaBan', 'soLuongTon', 'VAT')
                 ->limit(20)
                 ->get();
 
@@ -359,6 +367,27 @@ class SanPhamController extends Controller
                 'success' => false,
                 'message' => 'Lỗi: ' . $e->getMessage()
             ], 500);
+        }
+    }
+
+
+    public function changeNoiBat($id)
+    {
+        $sanPham = SanPham::find($id);
+        if ($sanPham) {
+            $is_noi_bat = $sanPham->is_noi_bat == 1 ? 0 : 1;
+            $sanPham->update([
+                'is_noi_bat' => $is_noi_bat
+            ]);
+            return response()->json([
+                'status' => true,
+                'message' => "Đã đổi tình trạng sản phẩm " . $sanPham->tenSanPham . " thành công.",
+            ]);
+        } else {
+            return response()->json([
+                'status' => false,
+                'message' => 'Sản phẩm không tồn tại.'
+            ]);
         }
     }
 }

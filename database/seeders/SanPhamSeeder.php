@@ -126,6 +126,7 @@ class SanPhamSeeder extends Seeder
                     'thongSoKyThuat' => $this->generateThongSo($product[0]),
                     'ngayTao' => $now,
                     'ngayCapNhat' => null,
+                    'is_noi_bat' => rand(0, 1),
                 ];
                 $counter++;
             }

@@ -17,6 +17,12 @@ class KhachHangSeeder extends Seeder
             'khach2@example.com',
             'khach3@example.com',
         ];
+        $names = [
+            'Nguyễn Văn An',
+            'Trần Thị Bích',
+            'Lê Hữu Phúc',
+        ];
+
 
         $datas = [];
 
@@ -25,7 +31,7 @@ class KhachHangSeeder extends Seeder
 
             if ($taiKhoanId) {
                 $datas[] = [
-                    'hoTen' => 'Khách hàng số ' . ($key + 1),
+                    'hoTen' => $names[$key],
                     'sdt' => '01234567' . sprintf('%02d', $key + 10),
                     'email' => $email,
                     'diaChi' => 'Số ' . ($key + 1) . ' Đường ABC',

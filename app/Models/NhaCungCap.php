@@ -20,9 +20,10 @@ class NhaCungCap extends Model
         'ngayTao',
         'ngayCapNhat',
     ];
-    public function nhaCungCap()
+    
+    public function danhMucs()
     {
-        return $this->belongsTo(NhaCungCap::class, 'nhaCungCap_id', 'id');
+        return $this->hasMany(DanhMuc::class, 'nhaCungCap', 'id');
     }
 
 }

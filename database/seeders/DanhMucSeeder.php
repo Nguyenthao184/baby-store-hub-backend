@@ -63,6 +63,9 @@ class DanhMucSeeder extends Seeder
                 //'kho' => $khoIds[1] ?? null,
             ],
         ];
+        
+
+        $nhaCungCapIds = DB::table('NhaCungCap')->pluck('id')->toArray();
 
         $data = [];
         $counter = 1;
@@ -75,11 +78,11 @@ class DanhMucSeeder extends Seeder
                 'moTa' => $item['moTa'],
                 'soLuongSanPham' => 0,
                 'hinhAnh' => $item['hinhAnh'],
-                'nhaCungCap_id' => null,
-                //'idKho' => $item['kho'],
+                'nhaCungCap' => $nhaCungCapIds[array_rand($nhaCungCapIds)],
             ];
             $counter++;
         }
+
 
         DB::table('DanhMuc')->insert($data);
     }

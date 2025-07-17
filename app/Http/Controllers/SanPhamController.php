@@ -86,7 +86,6 @@ class SanPhamController extends Controller
                 'message' => 'Tạo sản phẩm thành công',
                 'data' => $sanPham
             ], 201);
-
         } catch (\Exception $e) {
             DB::rollBack();
             return response()->json([
@@ -116,7 +115,6 @@ class SanPhamController extends Controller
                 'message' => 'Lấy thông tin sản phẩm thành công',
                 'data' => $sanPham
             ], 200);
-
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
@@ -147,7 +145,14 @@ class SanPhamController extends Controller
             // $newKhoId = $request->kho_id;
 
             $updateData = $request->only([
-                'maSanPham','tenSanPham', 'maSKU', 'VAT', 'giaBan','soLuongTon','moTa', 'danhMuc_id'
+                'maSanPham',
+                'tenSanPham',
+                'maSKU',
+                'VAT',
+                'giaBan',
+                'soLuongTon',
+                'moTa',
+                'danhMuc_id'
             ]);
 
             // Xử lý upload hình ảnh mới
@@ -205,7 +210,6 @@ class SanPhamController extends Controller
                 'message' => 'Cập nhật sản phẩm thành công',
                 'data' => $sanPham
             ], 200);
-
         } catch (\Exception $e) {
             DB::rollBack();
             return response()->json([
@@ -232,7 +236,7 @@ class SanPhamController extends Controller
             }
 
             $danhMucId = $sanPham->danhMuc_id;
-           // $khoId = $sanPham->kho_id;
+            // $khoId = $sanPham->kho_id;
 
             // Xóa hình ảnh nếu có
             if ($sanPham->hinhAnh && Storage::disk('public')->exists($sanPham->hinhAnh)) {
@@ -261,7 +265,6 @@ class SanPhamController extends Controller
                 'success' => true,
                 'message' => 'Xóa sản phẩm thành công'
             ], 200);
-
         } catch (\Exception $e) {
             DB::rollBack();
             return response()->json([
@@ -286,14 +289,18 @@ class SanPhamController extends Controller
                 ], 404);
             }
 
-            $sanPhams = SanPham::where('danhMuc_id', $danhMucId)->with(['danhMuc', 'kho'])->get();
+            $sanPhams = DB::table('SanPham')
+                ->where('SanPham.danhMuc_id', $danhMucId)
+                ->join('DanhMuc', 'SanPham.danhMuc_id', '=', 'DanhMuc.id')
+                ->leftJoin('NhaCungCap', 'DanhMuc.nhaCungCap', '=', 'NhaCungCap.id')
+                ->select('SanPham.*', 'DanhMuc.tenDanhMuc', 'NhaCungCap.tenNhaCungCap')
+                ->get();
 
             return response()->json([
                 'success' => true,
                 'message' => 'Lấy sản phẩm theo danh mục thành công',
                 'data' => $sanPhams
             ], 200);
-
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
@@ -340,7 +347,7 @@ class SanPhamController extends Controller
 
             $query = DB::table('SanPham')
                 ->where('tenSanPham', 'like', "%{$q}%")
-                 ->orWhere('maSanPham', 'like', "%{$q}%")
+                ->orWhere('maSanPham', 'like', "%{$q}%")
                 ->orWhere('maSKU', 'like', "%{$q}%")
                 ->select('id', 'tenSanPham', 'maSKU', 'hinhAnh', 'moTa')
                 ->limit(20)
@@ -352,6 +359,6 @@ class SanPhamController extends Controller
                 'success' => false,
                 'message' => 'Lỗi: ' . $e->getMessage()
             ], 500);
-        }        
+        }
     }
 }

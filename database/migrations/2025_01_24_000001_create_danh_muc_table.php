@@ -18,8 +18,7 @@ return new class extends Migration
             $table->text('moTa')->nullable();
             $table->integer('soLuongSanPham')->default(0);
             $table->string('hinhAnh')->nullable();
-            $table->string('nhaCungCap_id')->nullable();
-            //$table->string('idKho')->nullable();
+            $table->unsignedBigInteger('nhaCungCap')->nullable();
         });
     }
 

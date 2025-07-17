@@ -48,11 +48,6 @@ return [
             'driver' => 'session',
             'provider' => 'authenticationprovider',
         ],
-       'taikhoan' => [
-            'driver' => 'sanctum',
-            'provider' => 'authenticationprovider',
-        ],
-
     ],
 
     /*

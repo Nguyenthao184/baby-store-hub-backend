@@ -50,7 +50,10 @@ class DanhMuc extends Model
     {
         return $this->hasMany(SanPham::class, 'danhMuc_id', 'id');
     }
-
+    public function nhaCungCap()
+    {
+        return $this->belongsTo(NhaCungCap::class, 'nhaCungCap', 'id');
+    }
     /**
      * Relationship with Kho
      */

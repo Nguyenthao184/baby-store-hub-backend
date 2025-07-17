@@ -13,72 +13,104 @@ class SanPhamSeeder extends Seeder
         $now = now();
 
         // Lấy toàn bộ danh mục
-        $danhMucList = DB::table('DanhMuc')->get()->keyBy('id')->values();
+        $danhMucList = DB::table('DanhMuc')->get()->keyBy('tenDanhMuc');
 
-        // Danh sách sản phẩm với ảnh riêng
-        $products = [
-            // Thế giới sữa
-            ['Sữa Enfa A+ 1', 'sua-enfa-a-1.png'],
-            ['Sữa Friso Gold 2', 'sua-friso-gold-2.png'],
-            ['Sữa Nan Optipro 3', 'sua-nan-optipro-3.png'],
-            ['Sữa Abbott Grow 4', 'sua-abbott-grow-4.png'],
-
-            // Bỉm, tã
-            ['Bỉm Pampers Newborn', 'bim-pampers-newborn.png'],
-            ['Bỉm Huggies Dry', 'bim-huggies-dry.png'],
-            ['Bỉm Bobby Extra Soft', 'bim-bobby-extra-soft.png'],
-            ['Tã Merries Nhật Bản', 'ta-merries-nhat-ban.png'],
-
-            // Thực phẩm - Đồ uống
-            ['Bột ăn dặm Nestle', 'bot-an-dam-nestle.png'],
-            ['Cháo tươi SG Food', 'chao-tuoi-sg-food.png'],
-            ['Nước trái cây Pigeon', 'nuoc-trai-cay-pigeon.png'],
-            ['Súp dinh dưỡng Heinz', 'sup-dinh-duong-heinz.png'],
-
-            // Sức khỏe & Vitamin
-            ['Vitamin C ChildLife', 'vitamin-c-childlife.png'],
-            ['Siro tăng đề kháng PediaSure', 'siro-tang-de-khang-pediasure.png'],
-            ['Men vi sinh BioGaia', 'men-vi-sinh-biogaia.png'],
-            ['DHA Bio Island', 'dha-bio-island.png'],
-
-            // Chăm sóc mẹ và bé - Mỹ phẩm
-            ['Kem chống hăm Bepanthen', 'kem-chong-ham-bepanthen.png'],
-            ['Sữa tắm gội Arau Baby', 'sua-tam-goi-arau-baby.png'],
-            ['Dầu dưỡng Bio Oil', 'dau-duong-bio-oil.png'],
-            ['Kem dưỡng ẩm Cetaphil', 'kem-duong-am-cetaphil.png'],
-
-            // Đồ dùng - Gia dụng
-            ['Bình sữa Comotomo', 'binh-sua-comotomo.png'],
-            ['Máy tiệt trùng bình sữa', 'may-tiet-trung-binh-sua.png'],
-            ['Ghế ăn dặm Mastela', 'ghe-an-dam-mastela.png'],
-            ['Nhiệt kế điện tử Omron', 'nhiet-ke-dien-tu-omron.png'],
-
-            // Thời trang và phụ kiện
-            ['Bộ quần áo Carter', 'bo-quan-ao-carter.png'],
-            ['Mũ len cho bé', 'mu-len-cho-be.png'],
-            ['Vớ sơ sinh', 'vo-so-sinh.png'],
-            ['Yếm ăn chống thấm', 'yem-an-chong-tham.png'],
-
-            // Đồ chơi, học tập
-            ['Đồ chơi xúc xắc', 'do-choi-xuc-xac.png'],
-            ['Xe tập đi cho bé', 'xe-tap-di-cho-be.png'],
-            ['Bảng chữ cái nam châm', 'bang-chu-cai-nam-cham.png'],
-            ['Đồ chơi xếp hình Lego', 'do-choi-xep-hinh-lego.png'],
+        // Mapping sản phẩm theo danh mục
+        $productsByCategory = [
+            'Thế giới sữa' => [
+                ['Sữa Enfa A+ 1', 'sua-enfa-a-1.png'],
+                ['Sữa Friso Gold 2', 'sua-friso-gold-2.png'],
+                ['Sữa Nan Optipro 3', 'sua-nan-optipro-3.png'],
+                ['Sữa Abbott Grow 4', 'sua-abbott-grow-4.png'],
+            ],
+            'Bỉm, tã' => [
+                ['Bỉm Pampers Newborn', 'bim-pampers-newborn.png'],
+                ['Bỉm Huggies Dry', 'bim-huggies-dry.png'],
+                ['Bỉm Bobby Extra Soft', 'bim-bobby-extra-soft.png'],
+                ['Tã Merries Nhật Bản', 'ta-merries-nhat-ban.png'],
+            ],
+            'Thực phẩm - Đồ uống' => [
+                ['Bột ăn dặm Nestle', 'bot-an-dam-nestle.png'],
+                ['Cháo tươi SG Food', 'chao-tuoi-sg-food.png'],
+                ['Nước trái cây Pigeon', 'nuoc-trai-cay-pigeon.png'],
+                ['Súp dinh dưỡng Heinz', 'sup-dinh-duong-heinz.png'],
+            ],
+            'Sức khoẻ & Vitamin' => [
+                ['Vitamin C ChildLife', 'vitamin-c-childlife.png'],
+                ['Siro tăng đề kháng PediaSure', 'siro-tang-de-khang-pediasure.png'],
+                ['Men vi sinh BioGaia', 'men-vi-sinh-biogaia.png'],
+                ['DHA Bio Island', 'dha-bio-island.png'],
+            ],
+            'Chăm sóc mẹ và bé - Mỹ phẩm' => [
+                ['Kem chống hăm Bepanthen', 'kem-chong-ham-bepanthen.png'],
+                ['Sữa tắm gội Arau Baby', 'sua-tam-goi-arau-baby.png'],
+                ['Dầu dưỡng Bio Oil', 'dau-duong-bio-oil.png'],
+                ['Kem dưỡng ẩm Cetaphil', 'kem-duong-am-cetaphil.png'],
+            ],
+            'Đồ dùng - Gia dụng' => [
+                ['Bình sữa Comotomo', 'binh-sua-comotomo.png'],
+                ['Máy tiệt trùng bình sữa', 'may-tiet-trung-binh-sua.png'],
+                ['Ghế ăn dặm Mastela', 'ghe-an-dam-mastela.png'],
+                ['Nhiệt kế điện tử Omron', 'nhiet-ke-dien-tu-omron.png'],
+            ],
+            'Thời trang và phụ kiện' => [
+                ['Bộ quần áo Carter', 'bo-quan-ao-carter.png'],
+                ['Mũ len cho bé', 'mu-len-cho-be.png'],
+                ['Vớ sơ sinh', 'vo-so-sinh.png'],
+                ['Yếm ăn chống thấm', 'yem-an-chong-tham.png'],
+            ],
+            'Đồ chơi, học tập' => [
+                ['Đồ chơi xúc xắc', 'do-choi-xuc-xac.png'],
+                ['Xe tập đi cho bé', 'xe-tap-di-cho-be.png'],
+                ['Bảng chữ cái nam châm', 'bang-chu-cai-nam-cham.png'],
+                ['Đồ chơi xếp hình Lego', 'do-choi-xep-hinh-lego.png'],
+            ],
         ];
 
         $sanPhamData = [];
-        $index = 0;
         $counter = 1;
 
-        foreach ($danhMucList as $danhMuc) {
-            for ($i = 0; $i < 4; $i++) {
-                $product = $products[$index];
+        foreach ($productsByCategory as $categoryName => $products) {
+            $danhMuc = $danhMucList[$categoryName] ?? null;
+            if (!$danhMuc) {
+                continue;
+            }
 
-                // Sinh mã SP0001, SP0002...
+            // Tổng tồn kho mong muốn cho mỗi danh mục
+            $totalTonKho = 4;
+            $numProducts = count($products);
+            $defaultQty = intdiv($totalTonKho, $numProducts);
+            $remainder = $totalTonKho - ($defaultQty * $numProducts);
+
+            // Khởi tạo mảng tồn kho chia đều
+            $quantities = array_fill(0, $numProducts, $defaultQty);
+            for ($r = 0; $r < $remainder; $r++) {
+                $randIndex = rand(0, $numProducts - 1);
+                $quantities[$randIndex]++;
+            }
+
+            // foreach ($products as $i => $product) {
+            //     $maSanPham = 'SP' . str_pad($counter, 4, '0', STR_PAD_LEFT);
+
+            //     $sanPhamData[] = [
+            //         'id' => (string) Str::uuid(),
+            //         'maSanPham' => $maSanPham,
+            //         'tenSanPham' => $product[0],
+            //         'maSKU' => strtoupper(Str::random(8)),
+            //         'VAT' => 8.00,
+            //         'giaBan' => random_int(100000, 1000000),
+            //         'soLuongTon' => $quantities[$i],
+            //         'moTa' => 'Sản phẩm: ' . $product[0],
+            //         'danhMuc_id' => $danhMuc->id,
+            //         'hinhAnh' => 'san_pham/' . $product[1],
+            //         'thongSoKyThuat' => $this->generateThongSo($product[0]),
+            //         'ngayTao' => $now,
+            //         'ngayCapNhat' => null,
+            //     ];
+            //     $counter++;
+            // }
+            foreach ($products as $i => $product) {
                 $maSanPham = 'SP' . str_pad($counter, 4, '0', STR_PAD_LEFT);
-
-                // Tạo thông số kỹ thuật phù hợp từng nhóm
-                $thongSoKyThuat = $this->generateThongSo($product[0]);
 
                 $sanPhamData[] = [
                     'id' => (string) Str::uuid(),
@@ -87,28 +119,26 @@ class SanPhamSeeder extends Seeder
                     'maSKU' => strtoupper(Str::random(8)),
                     'VAT' => 8.00,
                     'giaBan' => random_int(100000, 1000000),
-                    'soLuongTon' => random_int(10, 100),
+                    'soLuongTon' => random_int(20, 100), // random tồn kho lớn
                     'moTa' => 'Sản phẩm: ' . $product[0],
                     'danhMuc_id' => $danhMuc->id,
                     'hinhAnh' => 'san_pham/' . $product[1],
-                    'thongSoKyThuat' => $thongSoKyThuat,
+                    'thongSoKyThuat' => $this->generateThongSo($product[0]),
                     'ngayTao' => $now,
                     'ngayCapNhat' => null,
                 ];
-
-                $index++;
                 $counter++;
             }
         }
-
         // Insert tất cả
         foreach ($sanPhamData as $data) {
             \App\Models\SanPham::create($data);
         }
 
-        // Gọi hàm cập nhật số lượng
+        // Cập nhật số lượng sản phẩm mỗi danh mục
         $this->updateQuantities();
     }
+
 
     protected function generateThongSo(string $tenSanPham): array
     {
@@ -230,9 +260,8 @@ class SanPhamSeeder extends Seeder
 
     protected function updateQuantities(): void
     {
-        // Tính tổng số lượng tồn cho mỗi danh mục
         $danhMucCounts = DB::table('SanPham')
-            ->select('danhMuc_id', DB::raw('COUNT(soLuongTon) as total'))
+            ->select('danhMuc_id', DB::raw('COUNT(*) as total'))
             ->groupBy('danhMuc_id')
             ->pluck('total', 'danhMuc_id');
 

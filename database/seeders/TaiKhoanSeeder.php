@@ -14,7 +14,7 @@ class TaiKhoanSeeder extends Seeder
      */
     public function run(): void
     {
-         DB::table('TaiKhoan')->insert([
+        DB::table('TaiKhoan')->insert([
             [
                 'email' => 'admin@example.com',
                 'matKhau' => Hash::make('password'),
@@ -39,7 +39,19 @@ class TaiKhoanSeeder extends Seeder
                 'vaiTro' => 'KhachHang',
                 'trangThai' => true
             ],
+            [
+                'email' => 'khach2@example.com',
+                'matKhau' => Hash::make('password'),
+                'vaiTro' => 'KhachHang',
+                'trangThai' => true
+            ],
+            [
+                'email' => 'khach3@example.com',
+                'matKhau' => Hash::make('password'),
+                'vaiTro' => 'KhachHang',
+                'trangThai' => true
+            ]
+
         ]);
-    
     }
 }

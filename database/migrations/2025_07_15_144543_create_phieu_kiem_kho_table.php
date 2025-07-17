@@ -14,7 +14,7 @@ return new class extends Migration
           Schema::create('phieu_kiem_kho', function (Blueprint $table) {
             $table->id();
             $table->string('ma_phieu_kiem')->unique();
-            $table->date('ngay_kiem');
+            $table->dateTime('ngay_kiem');
             $table->date('ngay_can_bang')->nullable();
 
             $table->integer('tong_so_luong_thuc_te')->default(0);

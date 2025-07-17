@@ -88,11 +88,11 @@ Route::delete('/nha-cung-cap/{id}', [NhaCungCapController::class, 'destroy']);
 Route::get('/phieu-kiem-kho', [PhieuKiemKhoController::class, 'index']);
 Route::get('/phieu-kiem-kho/{id}', [PhieuKiemKhoController::class, 'show']);
 Route::post('/phieu-kiem-kho', [PhieuKiemKhoController::class, 'store']);
-// Route::post('/phieu-kiem-kho/{id}', [PhieuKiemKhoController::class, 'update']);
-// Route::delete('/phieu-kiem-kho/{id}', [PhieuKiemKhoController::class, 'destroy']);
+Route::post('/phieu-kiem-kho/{id}', [PhieuKiemKhoController::class, 'update']);
+Route::delete('/phieu-kiem-kho/{id}', [PhieuKiemKhoController::class, 'destroy']);
 
 Route::post('/phieu-kiem-kho/{id}/add-detail', [PhieuKiemKhoController::class, 'addDetail']);
-// Route::delete('/phieu-kiem-kho/chi-tiet/{id}', [PhieuKiemKhoController::class, 'deleteDetail']);
+Route::delete('/phieu-kiem-kho/chi-tiet/{id}', [PhieuKiemKhoController::class, 'deleteDetail']);
 Route::post('/phieu-kiem-kho/{id}/can-bang', [PhieuKiemKhoController::class, 'canBang']);
 
 

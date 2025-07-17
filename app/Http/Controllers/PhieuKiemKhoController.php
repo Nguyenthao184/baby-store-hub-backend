@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use App\Http\Requests\PhieuKiemKho\StorePhieuKiemKhoRequest;
 use App\Http\Requests\PhieuKiemKho\StoreChiTietPhieuKiemKhoRequest;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 
 class PhieuKiemKhoController extends Controller
@@ -41,7 +42,7 @@ class PhieuKiemKhoController extends Controller
 
         $phieu = PhieuKiemKho::create([
             'ma_phieu_kiem' => $request->ma_phieu_kiem,
-            'ngay_kiem' => $request->ngay_kiem,
+            'ngay_kiem' => Carbon::parse($request->ngay_kiem),
             'ghi_chu' => $request->ghi_chu,
             'nguoi_tao_id' => $user->id,
             'trang_thai' => 'phieu_tam'
@@ -66,7 +67,7 @@ class PhieuKiemKhoController extends Controller
         }
 
         $phieu->update([
-            'ngay_kiem' => $request->ngay_kiem ?? $phieu->ngay_kiem,
+            'ngay_kiem' => $request->ngay_kiem ? Carbon::parse($request->ngay_kiem) : $phieu->ngay_kiem,
             'ghi_chu' => $request->ghi_chu ?? $phieu->ghi_chu,
         ]);
 
@@ -80,13 +81,12 @@ class PhieuKiemKhoController extends Controller
     {
         $phieu = PhieuKiemKho::findOrFail($id);
 
-        if ($phieu->trang_thai !== 'phieu_tam') {
+        if (!in_array($phieu->trang_thai, ['phieu_tam', 'da_can_bang'])) {
             return response()->json([
                 'success' => false,
-                'message' => 'Chỉ được xóa phiếu ở trạng thái tạm.'
+                'message' => 'Chỉ được xóa phiếu khi đang ở trạng thái tạm hoặc đã cân bằng.'
             ], 400);
         }
-
         $phieu->delete();
 
         return response()->json([
@@ -136,6 +136,12 @@ class PhieuKiemKhoController extends Controller
         DB::beginTransaction();
 
         $phieu = PhieuKiemKho::with('chiTiet')->findOrFail($id);
+        if ($phieu->chiTiet->isEmpty()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Không thể hoàn thành. Chưa có hàng hóa nào được kiểm kê.'
+            ], 400);
+        }
 
         if ($phieu->trang_thai !== 'phieu_tam') {
             return response()->json([
@@ -170,14 +176,28 @@ class PhieuKiemKhoController extends Controller
     }
     public function deleteDetail($id)
     {
-        $detail = ChiTietPhieuKiemKho::findOrFail($id);
+        $detail = ChiTietPhieuKiemKho::find($id);
 
-        // Optional: Chỉ cho xóa nếu phiếu tạm
-        $phieu = PhieuKiemKho::find($detail->phieu_kiem_id);
-        if ($phieu && $phieu->trang_thai !== 'phieu_tam') {
+        if (!$detail) {
             return response()->json([
                 'success' => false,
-                'message' => 'Chỉ được xóa chi tiết khi phiếu đang ở trạng thái tạm.'
+                'message' => 'Chi tiết sản phẩm không tồn tại.'
+            ], 404);
+        }
+
+        $phieu = PhieuKiemKho::find($detail->phieu_kiem_id);
+        if (!$phieu) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Không tìm thấy phiếu kiểm kho tương ứng.'
+            ], 404);
+        }
+
+        // Nếu bạn muốn giới hạn chỉ không cho xóa khi đã bị hủy:
+        if ($phieu->trang_thai === 'da_huy') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Không thể xóa chi tiết vì phiếu đã bị hủy.'
             ], 400);
         }
 
@@ -185,7 +205,7 @@ class PhieuKiemKhoController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Đã xóa chi tiết sản phẩm.'
+            'message' => 'Đã xóa chi tiết sản phẩm thành công.'
         ]);
     }
 }

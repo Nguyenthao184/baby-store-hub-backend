@@ -31,7 +31,6 @@ class PhieuKiemKhoController extends Controller
      */
     public function store(StorePhieuKiemKhoRequest $request)
     {
-
         $user = Auth::guard('sanctum')->user();
         if (!$user) {
             return response()->json([
@@ -40,18 +39,48 @@ class PhieuKiemKhoController extends Controller
             ], 401);
         }
 
-        $phieu = PhieuKiemKho::create([
-            'ma_phieu_kiem' => $request->ma_phieu_kiem,
-            'ngay_kiem' => Carbon::parse($request->ngay_kiem),
-            'ghi_chu' => $request->ghi_chu,
-            'nguoi_tao_id' => $user->id,
-            'trang_thai' => 'phieu_tam'
-        ]);
+        $chiTiet = $request->chi_tiet_san_pham;
+        if (empty($chiTiet) || !is_array($chiTiet)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Vui lòng thêm ít nhất một sản phẩm cần kiểm kê.'
+            ], 400);
+        }
 
-        return response()->json([
-            'success' => true,
-            'data' => $phieu
-        ]);
+        DB::beginTransaction();
+
+        try {
+            $phieu = PhieuKiemKho::create([
+                'ma_phieu_kiem' => $request->ma_phieu_kiem,
+                'ngay_kiem' => Carbon::parse($request->ngay_kiem),
+                'ghi_chu' => $request->ghi_chu,
+                'nguoi_tao_id' => $user->id,
+                'trang_thai' => 'phieu_tam'
+            ]);
+
+            foreach ($chiTiet as $item) {
+                ChiTietPhieuKiemKho::create([
+                    'phieu_kiem_id' => $phieu->id,
+                    'san_pham_id' => $item['san_pham_id'],
+                    'so_luong_ly_thuyet' => $item['so_luong_ly_thuyet'],
+                    'so_luong_thuc_te' => $item['so_luong_thuc_te'],
+                    'so_chenh_lech' => $item['so_luong_thuc_te'] - $item['so_luong_ly_thuyet'],
+                ]);
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'data' => $phieu->load('chiTiet')
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Đã xảy ra lỗi: ' . $e->getMessage()
+            ], 500);
+        }
     }
 
 

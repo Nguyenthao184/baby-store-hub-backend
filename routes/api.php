@@ -17,6 +17,7 @@ use Illuminate\Support\Facades\Route;
 Route::post('/auth/register', [AuthController::class, 'register']);
 Route::post('/auth/login', [AuthController::class, 'login']);
 Route::post('/auth/logout', [AuthController::class, 'logout']);
+
 Route::get('khachHang/san-pham', [SanPhamController::class, 'index']); // Lấy danh sách sản phẩm
 Route::get('khachHang/danh-muc', [DanhMucController::class, 'index']); // Lấy danh sách danh mục
 Route::get('khachHang/danh-muc/{danhMucId}/san-pham', [SanPhamController::class, 'getByCategory']); // Lấy sản phẩm theo danh mục

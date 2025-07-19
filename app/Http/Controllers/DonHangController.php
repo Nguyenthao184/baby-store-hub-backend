@@ -9,14 +9,17 @@ use App\Models\DonHang;
 use App\Models\HoaDon;
 use App\Models\ChiTietDonHang;
 use App\Models\SanPham;
+use App\Http\Requests\DonHang\ThanhToanDonHangRequest;
 
 class DonHangController extends Controller
 {
-    public function thanhToan(Request $request)
+    public function thanhToan(ThanhToanDonHangRequest $request)
     {
         DB::beginTransaction();
 
         try {
+            $data = $request->validated();
+
             // Map phương thức thanh toán từ frontend sang database enum
             $phuongThucMap = [
                 'cash' => 'TienMat',

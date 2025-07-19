@@ -9,6 +9,8 @@ use App\Models\NhaCungCap;
 use Illuminate\Http\Request;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
+use App\Http\Requests\PhieuNhapKho\StorePhieuNhapKhoRequest;
+use App\Http\Requests\PhieuNhapKho\UpdatePhieuNhapKhoRequest;
 
 class PhieuNhapKhoController extends Controller
 {
@@ -79,11 +81,13 @@ class PhieuNhapKhoController extends Controller
     /**
      * Tạo mới phiếu nhập kho (dạng phiếu tạm, chưa cộng vào tồn kho)
      */
-    public function store(Request $request)
+    public function store(CreatePhieuNhapKhoRequest $request)
     {
         DB::beginTransaction();
 
         try {
+            $data = $request->validated();
+
             $lastPhieu = DB::table('phieu_nhap_kho')->orderBy('id', 'desc')->first();
             $nextNumber = $lastPhieu ? ((int)substr($lastPhieu->so_phieu, 3)) + 1 : 1;
             $soPhieu = 'PNK' . str_pad($nextNumber, 4, '0', STR_PAD_LEFT);
@@ -152,11 +156,12 @@ class PhieuNhapKhoController extends Controller
     /**
      * Cập nhật thông tin phiếu (chỉ cho phép cập nhật nếu đang là phiếu_tạm)
      */
-    public function update(Request $request, $id)
+    public function update(UpdatePhieuNhapKhoRequest $request, $id)
     {
         DB::beginTransaction();
 
         try {
+            $data = $request->validated();
             $phieuNhap = PhieuNhapKho::find($id);
 
             if (!$phieuNhap) {
@@ -263,23 +268,47 @@ class PhieuNhapKhoController extends Controller
     }
 
     /**
-     * Xóa phiếu nhập kho (chỉ được xóa nếu chưa xác nhận)
+     * Hủy phiếu nhập kho (chỉ được xóa nếu chưa xác nhận)
      */
-    public function destroy($id)
+    public function huyPhieuNhap($id)
     {
-        $phieu = PhieuNhapKho::where('id', $id)
-            ->where('trang_thai', 'phieu_tam')
-            ->first();
+        DB::beginTransaction();
 
-        if (!$phieu) {
-            return response()->json(['error' => 'Không tìm thấy phiếu nhập kho hoặc phiếu không ở trạng thái tạm'], 404);
+        try {
+            $phieu = PhieuNhapKho::with('chiTiet')->find($id);
+
+            if (!$phieu) {
+                return response()->json(['error' => 'Không tìm thấy phiếu nhập kho'], 404);
+            }
+
+            // Nếu phiếu đã nhập, cần trả lại số lượng cho kho
+            if ($phieu->trang_thai === 'da_nhap') {
+                foreach ($phieu->chiTiet as $item) {
+                    $sanPham = SanPham::find($item->san_pham_id);
+                    if ($sanPham) {
+                        $sanPham->soLuongTon -= $item->so_luong_nhap;
+                        if ($sanPham->soLuongTon < 0) {
+                            $sanPham->soLuongTon = 0; // tránh âm tồn kho
+                        }
+                        $sanPham->save();
+                    }
+                }
+            }
+
+            // Cập nhật trạng thái sang "da_huy"
+            $phieu->update(['trang_thai' => 'da_huy']);
+
+            DB::commit();
+
+            return response()->json([
+                'message' => 'Phiếu nhập kho đã được hủy',
+                'data' => $phieu
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['error' => $e->getMessage()], 500);
         }
-
-        // Xóa chi tiết trước rồi mới xóa phiếu
-        $phieu->chiTiet()->delete();
-        $phieu->delete();
-
-        return response()->json(['message' => 'Đã xóa phiếu nhập kho']);
     }
+
 
 }

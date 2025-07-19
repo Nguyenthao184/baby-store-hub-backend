@@ -7,6 +7,7 @@ use App\Models\HoaDon;
 use Illuminate\Support\Facades\DB;
 use App\Models\ChiTietDonHang;
 use App\Models\SanPham;
+use App\Http\Requests\HoaDon\UpdateHoaDonRequest;
 
 class HoaDonController extends Controller
 {
@@ -64,11 +65,12 @@ class HoaDonController extends Controller
     /**
      * Cập nhật thông tin hóa đơn
      */
-    public function update(Request $request, $id)
+    public function update(UpdateHoaDonRequest $request, $id)
     {
         DB::beginTransaction();
 
         try {
+            $data = $request->validated(); 
             $hoaDon = HoaDon::findOrFail($id);
             $donHang = $hoaDon->donHang;
 

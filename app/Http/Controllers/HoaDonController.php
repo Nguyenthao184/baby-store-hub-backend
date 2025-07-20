@@ -123,7 +123,7 @@ class HoaDonController extends Controller
                     $chenhLech = $soLuongMoi - $soLuongCu;
 
                     if ($chenhLech > 0) {
-                        if ($sanPham->soLuong < $chenhLech) {
+                        if ($sanPham->soLuongTon < $chenhLech) {
                             DB::rollBack();
                             return response()->json([
                                 'error' => 'Không đủ hàng tồn kho cho sản phẩm ' . $sanPham->tenSanPham

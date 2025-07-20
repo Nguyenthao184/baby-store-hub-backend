@@ -26,7 +26,7 @@ class UpdatePhieuNhapKhoRequest extends FormRequest
             'ghi_chu' => 'nullable|string',
             'trang_thai' => 'required|in:phieu_tam,da_nhap,da_huy',
             'chiTiet' => 'required|array|min:1',
-            'chiTiet.*.san_pham_id' => 'required|integer|exists:san_pham,id',
+            'chiTiet.*.san_pham_id' => 'required|string|exists:SanPham,id',
             'chiTiet.*.so_luong_nhap' => 'required|integer|min:1',
             'chiTiet.*.gia_nhap' => 'required|numeric|min:0',
             'chiTiet.*.thue_nhap' => 'nullable|numeric|min:0',

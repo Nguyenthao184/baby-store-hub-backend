@@ -81,7 +81,7 @@ class PhieuNhapKhoController extends Controller
     /**
      * Tạo mới phiếu nhập kho (dạng phiếu tạm, chưa cộng vào tồn kho)
      */
-    public function store(CreatePhieuNhapKhoRequest $request)
+    public function store(StorePhieuNhapKhoRequest $request)
     {
         DB::beginTransaction();
 

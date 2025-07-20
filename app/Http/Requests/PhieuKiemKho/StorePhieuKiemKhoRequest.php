@@ -26,10 +26,10 @@ class StorePhieuKiemKhoRequest extends FormRequest
             'ma_phieu_kiem' => 'required|string|max:50|unique:phieu_kiem_kho,ma_phieu_kiem',
             'ngay_kiem' => 'required|date',
             'ghi_chu' => 'nullable|string',
-            'chi_tiet_san_pham' => 'required|array|min:1',
-            'chi_tiet_san_pham.*.san_pham_id' => 'required|string|exists:SanPham,id',
-            'chi_tiet_san_pham.*.so_luong_ly_thuyet' => 'required|numeric|min:0',
-            'chi_tiet_san_pham.*.so_luong_thuc_te' => 'required|numeric|min:0',
+                'chi_tiet_san_pham' => 'nullable|array',
+        'chi_tiet_san_pham.*.san_pham_id' => 'required_with:chi_tiet_san_pham|string|exists:SanPham,id',
+        'chi_tiet_san_pham.*.so_luong_ly_thuyet' => 'required_with:chi_tiet_san_pham|numeric|min:0',
+        'chi_tiet_san_pham.*.so_luong_thuc_te' => 'required_with:chi_tiet_san_pham|numeric|min:0',
         ];
     }
 

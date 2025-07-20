@@ -29,10 +29,12 @@ class UpdateHoaDonRequest extends FormRequest
             'phuongThucThanhToan' => 'required|string|in:TienMat,ChuyenKhoan,The',
             'ghiChu' => 'nullable|string',
             'trangThai' => 'nullable|string|in:completed,cancelled,pending',
+
             'xoaSanPhamIds' => 'nullable|array',
-            'xoaSanPhamIds.*' => 'integer|exists:san_pham,id',
+            'xoaSanPhamIds.*' => 'string|exists:SanPham,id',
+
             'sanPhams' => 'nullable|array',
-            'sanPhams.*.id' => 'required_with:sanPhams|integer|exists:san_pham,id',
+            'sanPhams.*.id' => 'required_with:sanPhams|string|exists:SanPham,id',
             'sanPhams.*.soLuong' => 'required_with:sanPhams|integer|min:1',
             'sanPhams.*.giaBan' => 'required_with:sanPhams|numeric|min:0',
             'sanPhams.*.giamGia' => 'nullable|numeric|min:0',

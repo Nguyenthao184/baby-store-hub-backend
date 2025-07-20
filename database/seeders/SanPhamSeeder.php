@@ -89,7 +89,26 @@ class SanPhamSeeder extends Seeder
                 $quantities[$randIndex]++;
             }
 
+             // foreach ($products as $i => $product) {
+            //     $maSanPham = 'SP' . str_pad($counter, 4, '0', STR_PAD_LEFT);
 
+            //     $sanPhamData[] = [
+            //         'id' => (string) Str::uuid(),
+            //         'maSanPham' => $maSanPham,
+            //         'tenSanPham' => $product[0],
+            //         'maSKU' => strtoupper(Str::random(8)),
+            //         'VAT' => 8.00,
+            //         'giaBan' => random_int(100000, 1000000),
+            //         'soLuongTon' => $quantities[$i],
+            //         'moTa' => 'Sản phẩm: ' . $product[0],
+            //         'danhMuc_id' => $danhMuc->id,
+            //         'hinhAnh' => 'san_pham/' . $product[1],
+            //         'thongSoKyThuat' => $this->generateThongSo($product[0]),
+            //         'ngayTao' => $now,
+            //         'ngayCapNhat' => null,
+            //     ];
+            //     $counter++;
+            // }
             foreach ($products as $i => $product) {
                 $maSanPham = 'SP' . str_pad($counter, 4, '0', STR_PAD_LEFT);
 

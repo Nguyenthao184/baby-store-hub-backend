@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Http\Controllers\PhieuNhapKhoController;
 use App\Models\NhaCungCap;
 use App\Models\User;
 // use Illuminate\Database\Console\Seeds\WithoutModelEvents;
@@ -33,5 +34,6 @@ class DatabaseSeeder extends Seeder
         $this->call(HoaDonSeeder::class);
         $this->call(PhieuNhapKhoSeeder::class);
         $this->call(ChiTietPhieuNhapKhoSeeder::class);
+        $this->call(PhieuKiemKhoSeeder::class);
     }
 }

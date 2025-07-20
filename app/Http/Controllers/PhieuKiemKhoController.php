@@ -18,7 +18,7 @@ class PhieuKiemKhoController extends Controller
      */
     public function index()
     {
-        $list = PhieuKiemKho::with(['chiTiet.sanPham'])
+        $list = PhieuKiemKho::with(['chiTiet'])
         ->orderBy('ngay_kiem', 'desc')
         ->get();
         
@@ -31,35 +31,30 @@ class PhieuKiemKhoController extends Controller
     /**
      * Tạo phiếu kiểm kho mới
      */
-    public function store(StorePhieuKiemKhoRequest $request)
-    {
-        $user = Auth::guard('sanctum')->user();
-        if (!$user) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Bạn chưa đăng nhập hoặc token không hợp lệ.'
-            ], 401);
-        }
+   public function store(StorePhieuKiemKhoRequest $request)
+{
+    $user = Auth::guard('sanctum')->user();
+    if (!$user) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Bạn chưa đăng nhập hoặc token không hợp lệ.'
+        ], 401);
+    }
 
+    DB::beginTransaction();
+
+    try {
+        $phieu = PhieuKiemKho::create([
+            'ma_phieu_kiem' => $request->ma_phieu_kiem,
+            'ngay_kiem' => Carbon::parse($request->ngay_kiem),
+            'ghi_chu' => $request->ghi_chu,
+            'nguoi_tao_id' => $user->id,
+            'trang_thai' => 'phieu_tam'
+        ]);
+
+        // Nếu có chi tiết thì thêm luôn, còn không thì bỏ qua
         $chiTiet = $request->chi_tiet_san_pham;
-        if (empty($chiTiet) || !is_array($chiTiet)) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Vui lòng thêm ít nhất một sản phẩm cần kiểm kê.'
-            ], 400);
-        }
-
-        DB::beginTransaction();
-
-        try {
-            $phieu = PhieuKiemKho::create([
-                'ma_phieu_kiem' => $request->ma_phieu_kiem,
-                'ngay_kiem' => Carbon::parse($request->ngay_kiem),
-                'ghi_chu' => $request->ghi_chu,
-                'nguoi_tao_id' => $user->id,
-                'trang_thai' => 'phieu_tam'
-            ]);
-
+        if (!empty($chiTiet) && is_array($chiTiet)) {
             foreach ($chiTiet as $item) {
                 ChiTietPhieuKiemKho::create([
                     'phieu_kiem_id' => $phieu->id,
@@ -69,21 +64,22 @@ class PhieuKiemKhoController extends Controller
                     'so_chenh_lech' => $item['so_luong_thuc_te'] - $item['so_luong_ly_thuyet'],
                 ]);
             }
-
-            DB::commit();
-
-            return response()->json([
-                'success' => true,
-                'data' => $phieu->load('chiTiet')
-            ]);
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return response()->json([
-                'success' => false,
-                'message' => 'Đã xảy ra lỗi: ' . $e->getMessage()
-            ], 500);
         }
+
+        DB::commit();
+
+        return response()->json([
+            'success' => true,
+            'data' => $phieu->load('chiTiet')
+        ]);
+    } catch (\Exception $e) {
+        DB::rollBack();
+        return response()->json([
+            'success' => false,
+            'message' => 'Đã xảy ra lỗi: ' . $e->getMessage()
+        ], 500);
     }
+}
 
 
     public function update(Request $request, $id)

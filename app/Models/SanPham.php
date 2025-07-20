@@ -51,7 +51,7 @@ class SanPham extends Model
                 $latest = self::orderBy('maSanPham', 'desc')->first();
                 $nextNumber = $latest ? ((int)substr($latest->maSanPham, 2)) + 1 : 1;
                 $model->maSanPham = 'SP' . str_pad($nextNumber, 4, '0', STR_PAD_LEFT);
-        }
+            }
         });
 
         static::updating(function ($model) {
@@ -66,12 +66,8 @@ class SanPham extends Model
     {
         return $this->belongsTo(DanhMuc::class, 'danhMuc_id', 'id');
     }
-
-    /**
-     * Relationship with Kho
-     */
-    // public function kho()
-    // {
-    //     return $this->belongsTo(Kho::class, 'kho_id', 'id');
-    // }
+    public function chiTietPhieuKiemKho()
+    {
+        return $this->hasMany(ChiTietPhieuKiemKho::class, 'san_pham_id');
+    }
 }

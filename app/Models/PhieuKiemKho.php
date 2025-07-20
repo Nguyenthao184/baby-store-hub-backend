@@ -26,10 +26,7 @@ class PhieuKiemKho extends Model
     {
         return $this->hasMany(ChiTietPhieuKiemKho::class, 'phieu_kiem_id');
     }
-    public function sanPham()
-    {
-        return $this->belongsTo(SanPham::class, 'san_pham_id');
-    }
+    
 
 }
 

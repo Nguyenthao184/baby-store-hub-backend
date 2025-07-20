@@ -18,8 +18,10 @@ class PhieuKiemKhoController extends Controller
      */
     public function index()
     {
-        $list = PhieuKiemKho::orderBy('ngay_kiem', 'desc')->get();
-
+        $list = PhieuKiemKho::with(['chiTiet.sanPham'])
+        ->orderBy('ngay_kiem', 'desc')
+        ->get();
+        
         return response()->json([
             'success' => true,
             'data' => $list

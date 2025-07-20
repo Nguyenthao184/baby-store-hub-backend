@@ -20,6 +20,9 @@ class ChiTietPhieuKiemKho extends Model
     {
         return $this->belongsTo(PhieuKiemKho::class, 'phieu_kiem_id');
     }
-
+     public function sanPham()
+    {
+        return $this->belongsTo(SanPham::class, 'san_pham_id');
+    }
    
 }

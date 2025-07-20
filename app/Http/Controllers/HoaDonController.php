@@ -98,7 +98,7 @@ class HoaDonController extends Controller
                 foreach ($chiTiets as $chiTiet) {
                     $sanPham = SanPham::find($chiTiet->sanpham_id);
                     if ($sanPham) {
-                        $sanPham->soLuong += $chiTiet->soLuong;
+                        $sanPham->soLuongTon  += $chiTiet->soLuong;
                         $sanPham->save();
                     }
                 }
@@ -126,12 +126,12 @@ class HoaDonController extends Controller
                         if ($sanPham->soLuong < $chenhLech) {
                             DB::rollBack();
                             return response()->json([
-                                'error' => 'Không đủ hàng tồn kho cho sản phẩm ' . $sanPham->ten
+                                'error' => 'Không đủ hàng tồn kho cho sản phẩm ' . $sanPham->tenSanPham
                             ], 400);
                         }
-                        $sanPham->soLuong -= $chenhLech;
+                        $sanPham->soLuongTon  -= $chenhLech;
                     } elseif ($chenhLech < 0) {
-                        $sanPham->soLuong += abs($chenhLech);
+                        $sanPham->soLuongTon  += abs($chenhLech);
                     }
 
                     $sanPham->save();

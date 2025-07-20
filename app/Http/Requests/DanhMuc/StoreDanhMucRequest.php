@@ -50,8 +50,6 @@ class StoreDanhMucRequest extends FormRequest
             'hinhAnh.max' => 'Kích thước hình ảnh không được vượt quá 2MB',
             'nhaCungCap.string' => 'Nhà cung cấp phải là chuỗi ký tự',
             'nhaCungCap.max' => 'Tên nhà cung cấp không được vượt quá 255 ký tự',
-            'idKho.string' => 'ID kho phải là chuỗi ký tự',
-            'idKho.exists' => 'Kho không tồn tại'
         ];
     }
 }

@@ -22,7 +22,7 @@ class StoreChiTietPhieuKiemKhoRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'san_pham_id' => 'required|integer',
+            'san_pham_id' => 'required|string|exists:SanPham,id',
             'so_luong_ly_thuyet' => 'required|integer|min:0',
             'so_luong_thuc_te' => 'required|integer|min:0',
         ];

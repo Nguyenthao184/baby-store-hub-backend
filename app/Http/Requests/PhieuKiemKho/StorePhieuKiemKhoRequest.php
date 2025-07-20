@@ -27,7 +27,7 @@ class StorePhieuKiemKhoRequest extends FormRequest
             'ngay_kiem' => 'required|date',
             'ghi_chu' => 'nullable|string',
             'chi_tiet_san_pham' => 'required|array|min:1',
-            'chi_tiet_san_pham.*.san_pham_id' => 'required|integer|exists:san_phams,id',
+            'chi_tiet_san_pham.*.san_pham_id' => 'required|string|exists:SanPham,id',
             'chi_tiet_san_pham.*.so_luong_ly_thuyet' => 'required|numeric|min:0',
             'chi_tiet_san_pham.*.so_luong_thuc_te' => 'required|numeric|min:0',
         ];

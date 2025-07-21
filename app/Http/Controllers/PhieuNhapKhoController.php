@@ -71,7 +71,7 @@ class PhieuNhapKhoController extends Controller
      */
     public function index()
     {
-        $dsPhieu = PhieuNhapKho::with('chiTiet.sanPham', 'nhaCungCap')
+        $dsPhieu = PhieuNhapKho::with('chiTiet.sanPham','nhaCungCap')
             ->orderByDesc('ngay_nhap')
             ->get();
 

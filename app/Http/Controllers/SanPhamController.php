@@ -79,7 +79,7 @@ class SanPhamController extends Controller
 
             DB::commit();
 
-            $sanPham->load(['danhMuc', 'kho']);
+            $sanPham->load(['danhMuc']);
 
             return response()->json([
                 'success' => true,

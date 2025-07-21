@@ -22,10 +22,10 @@ class ThanhToanDonHangRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'khachHang_id' => 'required|integer|exists:khach_hang,id',
+            'khachHang_id' => 'required|integer|exists:KhachHang,id',
             'phuongThuc' => 'required|string|in:cash,bank,card,TienMat,ChuyenKhoan,The',
             'sanPhams' => 'required|array|min:1',
-            'sanPhams.*.id' => 'required|integer|exists:san_pham,id',
+            'sanPhams.*.id' => 'required|string|exists:SanPham,id',
             'sanPhams.*.soLuong' => 'required|integer|min:1',
             'sanPhams.*.giaBan' => 'required|numeric|min:0',
             'sanPhams.*.giamGia' => 'nullable|numeric|min:0',

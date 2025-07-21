@@ -41,7 +41,7 @@ class SanPhamSeeder extends Seeder
                 ['Men vi sinh BioGaia', 'men-vi-sinh-biogaia.png'],
                 ['DHA Bio Island', 'dha-bio-island.png'],
             ],
-            'Chăm sóc mẹ và bé - Mỹ phẩm' => [
+            'Chăm sóc - Mỹ phẩm' => [
                 ['Kem chống hăm Bepanthen', 'kem-chong-ham-bepanthen.png'],
                 ['Sữa tắm gội Arau Baby', 'sua-tam-goi-arau-baby.png'],
                 ['Dầu dưỡng Bio Oil', 'dau-duong-bio-oil.png'],

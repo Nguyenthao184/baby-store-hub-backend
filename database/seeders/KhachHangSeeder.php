@@ -12,35 +12,40 @@ class KhachHangSeeder extends Seeder
      */
     public function run(): void
     {
-        $emails = [
-            'khach@example.com',
-            'khach2@example.com',
-            'khach3@example.com',
+        // Dữ liệu cứng
+        $khachHangs = [
+            [
+                'hoTen'       => 'Nguyễn Văn An',
+                'sdt'         => '0123456789',
+                'email'       => 'khach@example.com',
+                'diaChi'      => 'Số 1 Đường ABC, Đà Nẵng',
+                'ngaySinh'    => '1990-01-01',
+                'avatar'      => 'avatars/kh-1.jpg',
+                'taiKhoan_id' => DB::table('TaiKhoan')->where('email', 'khach@example.com')->value('id'),
+            ],
+            [
+                'hoTen'       => 'Trần Thị Bích',
+                'sdt'         => '0123456790',
+                'email'       => 'khach2@example.com',
+                'diaChi'      => 'Số 2 Đường ABC, Đà Nẵng',
+                'ngaySinh'    => '1991-02-01',
+                'avatar'      => 'avatars/kh-2.jpg',
+                'taiKhoan_id' => DB::table('TaiKhoan')->where('email', 'khach2@example.com')->value('id'),
+            ],
+            [
+                'hoTen'       => 'Lê Hữu Phúc',
+                'sdt'         => '0123456791',
+                'email'       => 'khach3@example.com',
+                'diaChi'      => 'Số 3 Đường ABC, Đà Nẵng',
+                'ngaySinh'    => '1992-03-01',
+                'avatar'      => 'avatars/kh-3.jpg',
+                'taiKhoan_id' => DB::table('TaiKhoan')->where('email', 'khach3@example.com')->value('id'),
+            ],
         ];
-        $names = [
-            'Nguyễn Văn An',
-            'Trần Thị Bích',
-            'Lê Hữu Phúc',
-        ];
 
+        // Xoá dữ liệu cũ để tránh trùng (nếu cần)
+        DB::table('KhachHang')->truncate();
 
-        $datas = [];
-
-        foreach ($emails as $key => $email) {
-            $taiKhoanId = DB::table('TaiKhoan')->where('email', $email)->value('id');
-
-            if ($taiKhoanId) {
-                $datas[] = [
-                    'hoTen' => $names[$key],
-                    'sdt' => '01234567' . sprintf('%02d', $key + 10),
-                    'email' => $email,
-                    'diaChi' => 'Số ' . ($key + 1) . ' Đường ABC',
-                    'ngaySinh' => '1990-0' . ($key + 1) . '-01',
-                    'taiKhoan_id' => $taiKhoanId,
-                ];
-            }
-        }
-
-        DB::table('KhachHang')->insert($datas);
+        DB::table('KhachHang')->insert($khachHangs);
     }
 }

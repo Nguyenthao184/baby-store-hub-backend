@@ -18,7 +18,8 @@ return new class extends Migration
             $table->string('email', 255)->nullable();
             $table->string('diaChi', 255)->nullable();
             $table->date('ngaySinh')->nullable();
-           $table->unsignedBigInteger('taiKhoan_id')->nullable();;
+            $table->string('avatar', 255)->nullable();
+            $table->unsignedBigInteger('taiKhoan_id')->nullable();
 
         });
     }
@@ -28,6 +29,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('tk_khach_hang');
+        Schema::dropIfExists('KhachHang');
     }
 };

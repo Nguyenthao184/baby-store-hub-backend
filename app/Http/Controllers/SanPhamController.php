@@ -10,6 +10,7 @@ use App\Http\Requests\SanPham\StoreSanPhamRequest;
 use App\Http\Requests\SanPham\UpdateSanPhamRequest;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 
 class SanPhamController extends Controller
@@ -86,13 +87,17 @@ class SanPhamController extends Controller
                 'message' => 'Tạo sản phẩm thành công',
                 'data' => $sanPham
             ], 201);
+        
         } catch (\Exception $e) {
             DB::rollBack();
             return response()->json([
                 'success' => false,
                 'message' => 'Lỗi: ' . $e->getMessage()
             ], 500);
+            
         }
+
+
     }
 
     /**
@@ -141,8 +146,7 @@ class SanPhamController extends Controller
 
             $oldDanhMucId = $sanPham->danhMuc_id;
             $newDanhMucId = $request->danhMuc_id;
-            // $oldKhoId = $sanPham->kho_id;
-            // $newKhoId = $request->kho_id;
+        
 
             $updateData = $request->only([
                 'maSanPham',

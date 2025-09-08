@@ -20,4 +20,10 @@ class TaiKhoan extends Authenticatable
     ];
 
     public $timestamps = false;
+    
+    public function getAuthPassword()
+    {
+        return $this->matKhau;
+    }
+
 }

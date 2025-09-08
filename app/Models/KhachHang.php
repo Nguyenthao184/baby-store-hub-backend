@@ -15,6 +15,7 @@ protected $table = 'KhachHang';
         'email',
         'diaChi',
         'ngaySinh',
+        'avatar',
         'taiKhoan_id'
     ];
 

@@ -162,16 +162,21 @@ class SanPhamSeeder extends Seeder
             //     ];
             //     $counter++;
             // }
+            // Giá ngẫu nhiên rồi làm tròn về bậc 1.000đ (hoặc 500đ tuỳ bạn)
+            $gia = random_int(100_000, 1_000_000);
+            // tròn 1.000đ:
+            $gia = (int) (round($gia / 1000) * 1000);
+            // nếu muốn tròn 500đ: $gia = (int) (round($gia / 500) * 500);
             foreach ($products as $i => $product) {
                 $maSanPham = 'SP' . str_pad($counter, 4, '0', STR_PAD_LEFT);
-
+                
                 $sanPhamData[] = [
                     'id' => (string) Str::uuid(),
                     'maSanPham' => $maSanPham,
                     'tenSanPham' => $product[0],
                     'maSKU' => strtoupper(Str::random(8)),
                     'VAT' => 8.00,
-                    'giaBan' => random_int(100000, 1000000),
+                    'giaBan' => $gia,
                     'soLuongTon' => random_int(20, 100), // random tồn kho lớn
                     'moTa' => 'Sản phẩm ' . $product[0] . ' là lựa chọn chất lượng cao được nhiều mẹ tin dùng. Đảm bảo an toàn, tiện lợi và phù hợp cho nhu cầu chăm sóc mẹ và bé hiện đại. Xuất xứ rõ ràng, đạt tiêu chuẩn an toàn, và phù hợp với nhiều độ tuổi hoặc mục đích sử dụng.',
                     'danhMuc_id' => $danhMuc->id,

@@ -138,33 +138,58 @@ return [
     |
     */
 
+    // 'redis' => [
+    //     'client' => env('REDIS_CLIENT', 'predis'),
+
+    //     'options' => [
+    //         'cluster' => env('REDIS_CLUSTER', 'redis'),
+    //         'prefix'  => env('REDIS_PREFIX', Str::slug(env('APP_NAME', 'laravel'), '_') . '_database_'),
+    //     ],
+
+    //     'default' => [
+    //         'scheme'   => env('REDIS_SCHEME', 'tls'), // ⚠️ TLS cho Upstash
+    //         'url'      => env('REDIS_URL'),
+    //         'host'     => env('REDIS_HOST', '127.0.0.1'),
+    //         'password' => env('REDIS_PASSWORD'),
+    //         'port'     => env('REDIS_PORT', 6379),
+    //         'database' => env('REDIS_DB', 0),
+    //     ],
+
+    //     'cache' => [
+    //         'scheme'   => env('REDIS_SCHEME', 'tls'),
+    //         'url'      => env('REDIS_URL'),
+    //         'host'     => env('REDIS_HOST', '127.0.0.1'),
+    //         'password' => env('REDIS_PASSWORD'),
+    //         'port'     => env('REDIS_PORT', 6379),
+    //         'database' => env('REDIS_CACHE_DB', 1),
+    //     ],
     'redis' => [
-
-        'client' => env('REDIS_CLIENT', 'phpredis'),
-
-        'options' => [
-            'cluster' => env('REDIS_CLUSTER', 'redis'),
-            'prefix' => env('REDIS_PREFIX', Str::slug(env('APP_NAME', 'laravel'), '_').'_database_'),
-        ],
+        'client' => env('REDIS_CLIENT', 'predis'),
 
         'default' => [
-            'url' => env('REDIS_URL'),
-            'host' => env('REDIS_HOST', '127.0.0.1'),
-            'username' => env('REDIS_USERNAME'),
+            'scheme'   => env('REDIS_SCHEME', 'tls'),
+            'host'     => env('REDIS_HOST'),
+            'port'     => (int) env('REDIS_PORT', 6379),
+            'username' => env('REDIS_USERNAME', 'default'), // quan trọng
             'password' => env('REDIS_PASSWORD'),
-            'port' => env('REDIS_PORT', '6379'),
-            'database' => env('REDIS_DB', '0'),
+            'database' => (int) env('REDIS_DB', 0),
+            'read_write_timeout' => 0,
+            // Nếu Windows SSL khó: bật dòng dưới
+            // 'ssl' => ['verify_peer' => false, 'verify_peer_name' => false],
         ],
 
         'cache' => [
-            'url' => env('REDIS_URL'),
-            'host' => env('REDIS_HOST', '127.0.0.1'),
-            'username' => env('REDIS_USERNAME'),
+            'scheme'   => env('REDIS_SCHEME', 'tls'),
+            'host'     => env('REDIS_HOST'),
+            'port'     => (int) env('REDIS_PORT', 6379),
+            'username' => env('REDIS_USERNAME', 'default'),
             'password' => env('REDIS_PASSWORD'),
-            'port' => env('REDIS_PORT', '6379'),
-            'database' => env('REDIS_CACHE_DB', '1'),
+            'database' => (int) env('REDIS_CACHE_DB', 0),
+            'read_write_timeout' => 0,
+            // 'ssl' => ['verify_peer' => false, 'verify_peer_name' => false],
         ],
-
     ],
+
+
 
 ];

@@ -5,6 +5,7 @@ use App\Http\Controllers\DanhMucController;
 use App\Http\Controllers\SanPhamController;
 use App\Http\Controllers\KhoController;
 use App\Http\Controllers\DonHangController;
+use App\Http\Controllers\GioHangController;
 use App\Http\Controllers\KhachHangController;
 use App\Http\Controllers\HoaDonController;
 use App\Http\Controllers\NhaCungCapController;
@@ -13,6 +14,8 @@ use App\Http\Controllers\PhieuNhapKhoController;
 use App\Http\Controllers\KhachHangProfileController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Cache;
+
 
 // Auth routes
 Route::post('/auth/register', [AuthController::class, 'register']);
@@ -111,9 +114,21 @@ Route::prefix('phieu-nhap-kho')->group(function () {
 
 Route::middleware(['auth:sanctum','authRole:KhachHang'])->group(function () { 
     // Profile routes for KhachHang 
+    Route::post('/auth/logout', [AuthController::class, 'logout']);
+
     Route::get('/khach-hang/profile', [KhachHangProfileController::class, 'show']); // Lấy hồ sơ cá nhân 
     Route::post('/khach-hang/profile', [KhachHangProfileController::class, 'update']); // Cập nhật hồ sơ 
     Route::post('/khach-hang/profile/avatar', [KhachHangProfileController::class, 'updateAvatar']); // Thay avatar 
     Route::delete('/khach-hang/profile/avatar', [KhachHangProfileController::class, 'destroyAvatar']); // Xoá avatar 
     Route::post('/khach-hang/profile/password', [KhachHangProfileController::class, 'updatePassword']); // Đổi mật khẩu 
+
+    Route::get('/gio-hang', [GioHangController::class, 'xem']);
+    Route::post('/gio-hang/them', [GioHangController::class, 'them']);
+    Route::post('/gio-hang/cap-nhat/{sanPhamId}', [GioHangController::class, 'capNhat']);
+    Route::delete('/gio-hang/xoa/{sanPhamId}', [GioHangController::class, 'xoa']);
+    Route::delete('/gio-hang/xoa-het', [GioHangController::class, 'xoaHet']);
+    
 });
+
+
+

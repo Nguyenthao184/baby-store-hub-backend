@@ -11,6 +11,7 @@ use App\Http\Requests\Auth\LoginRequest;
 use App\Models\TaiKhoan;
 use App\Models\KhachHang;
 use Illuminate\Support\Facades\DB;
+use Laravel\Sanctum\PersonalAccessToken;
 
 class AuthController extends Controller
 {
@@ -96,11 +97,19 @@ class AuthController extends Controller
     }
     public function logout(Request $request)
     {
-        $request->user()->currentAccessToken()->delete();
+         if ($request->user()) {
+        $request->user()->currentAccessToken()?->delete();
+        return response()->json(['success' => true, 'message' => 'Đăng xuất thành công']);
+    }
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Đăng xuất thành công'
-        ]);
+    // Fallback: xóa theo Bearer token nếu vì lý do gì đó user() rỗng
+    if ($token = $request->bearerToken()) {
+        if ($pat = PersonalAccessToken::findToken($token)) {
+            $pat->delete();
+            return response()->json(['success' => true, 'message' => 'Đăng xuất thành công (fallback)']);
+        }
+    }
+
+    return response()->json(['success' => false, 'message' => 'Bạn chưa đăng nhập hoặc token không hợp lệ'], 401);
     }
 }

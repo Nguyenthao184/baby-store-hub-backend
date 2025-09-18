@@ -11,47 +11,53 @@ use App\Http\Requests\HoaDon\UpdateHoaDonRequest;
 
 class HoaDonController extends Controller
 {
+    /**
+     * Lấy danh sách hóa đơn với các bộ lọc
+     */
     public function index(Request $request)
     {
         $query = HoaDon::query()->with('donHang.khachHang');
 
         // Tìm theo mã hóa đơn
         if ($request->filled('maHoaDon')) {
-            $query->where('maHoaDon', 'like', '%' . $request->maHoaDon . '%');
+            $query->where('ma_hoa_don', 'like', '%' . $request->maHoaDon . '%');
         }
 
-        // Lọc theo phương thức thanh toán
+        // Lọc theo phương thức thanh toán (cod|momo|vnpay)
         if ($request->filled('phuongThuc')) {
-            $query->where('phuongThucThanhToan', $request->phuongThuc);
+            $query->where('phuong_thuc_thanh_toan', $request->phuongThuc);
         }
 
         // Lọc theo khoảng thời gian
         if ($request->filled('thoiGian')) {
-            $now = now()->startOfDay();
+            $now = now();
             switch ($request->thoiGian) {
                 case 'hom_nay':
-                    $query->whereDate('ngayXuat', $now);
+                    $query->whereDate('ngay_xuat', $now->toDateString());
                     break;
                 case 'hom_qua':
-                    $query->whereDate('ngayXuat', $now->copy()->subDay());
+                    $query->whereDate('ngay_xuat', $now->copy()->subDay()->toDateString());
                     break;
                 case 'tuan_nay':
-                    $query->whereBetween('ngayXuat', [$now->copy()->startOfWeek(), $now->copy()->endOfWeek()]);
+                    $query->whereBetween('ngay_xuat', [
+                        $now->copy()->startOfWeek(),
+                        $now->copy()->endOfWeek()
+                    ]);
                     break;
                 case 'tuan_truoc':
-                    $query->whereBetween('ngayXuat', [
+                    $query->whereBetween('ngay_xuat', [
                         $now->copy()->subWeek()->startOfWeek(),
                         $now->copy()->subWeek()->endOfWeek()
                     ]);
                     break;
                 case 'thang_nay':
-                    $query->whereBetween('ngayXuat', [
+                    $query->whereBetween('ngay_xuat', [
                         $now->copy()->startOfMonth(),
                         $now->copy()->endOfMonth()
                     ]);
                     break;
                 case 'thang_truoc':
-                    $query->whereBetween('ngayXuat', [
+                    $query->whereBetween('ngay_xuat', [
                         $now->copy()->subMonth()->startOfMonth(),
                         $now->copy()->subMonth()->endOfMonth()
                     ]);
@@ -59,94 +65,114 @@ class HoaDonController extends Controller
             }
         }
 
-        return response()->json($query->orderByDesc('ngayXuat')->get());
+        return response()->json($query->orderByDesc('ngay_xuat')->get());
     }
 
     /**
-     * Cập nhật thông tin hóa đơn
+     * Cập nhật thông tin hóa đơn (offline: không có phí vận chuyển)
      */
     public function update(UpdateHoaDonRequest $request, $id)
     {
         DB::beginTransaction();
 
         try {
-            $data = $request->validated(); 
+            $data   = $request->validated();
             $hoaDon = HoaDon::findOrFail($id);
             $donHang = $hoaDon->donHang;
 
-            // Cập nhật thông tin hóa đơn
+            // Chuẩn hóa key từ FE
+            $giamVoucher = $data['giamVoucher'] ?? $data['giamGiaSanPham'] ?? 0;
+            $tongVAT     = $data['tongVAT'] ?? $data['thueVAT'] ?? 0;
+            $giamDiem    = $data['giamDiem'] ?? 0;
+
+            // Cập nhật thông tin hóa đơn (phi_van_chuyen luôn 0 cho giao dịch offline)
             $hoaDon->update([
-                'tongTienHang' => $request->tongTienHang,
-                'giamGiaSanPham' => $request->giamGiaSanPham ?? 0,
-                'thueVAT' => $request->thueVAT ?? 0,
-                'tongThanhToan' => $request->tongThanhToan,
-                'phuongThucThanhToan' => $request->phuongThucThanhToan,
+                'tong_tien_hang'         => $data['tongTienHang'],
+                'giam_voucher'           => $giamVoucher,
+                'giam_diem'              => $giamDiem,
+                'tong_vat'               => $tongVAT,
+                'tong_thanh_toan'        => $data['tongThanhToan'],
+                'phuong_thuc_thanh_toan' => $data['phuongThucThanhToan'],
+                'phi_van_chuyen'         => 0,
             ]);
 
             // Cập nhật ghi chú/trạng thái đơn hàng nếu có
             $donHang->update([
-                'ghiChu' => $request->ghiChu ?? '',
-                'trangThai' => $request->trangThai ?? 'completed',
+                'ghi_chu'    => $data['ghiChu'] ?? '',
+                'trang_thai' => $data['trangThai'] ?? 'completed',
             ]);
 
-            // Xóa sản phẩm cũ và cộng lại kho
-            if ($request->has('xoaSanPhamIds')) {
-                $chiTiets = ChiTietDonHang::where('donHang_id', $donHang->id)
-                    ->whereIn('sanpham_id', $request->xoaSanPhamIds)
+            // Xóa sản phẩm cũ ra khỏi đơn + hoàn kho
+            if (!empty($data['xoaSanPhamIds']) && is_array($data['xoaSanPhamIds'])) {
+                $chiTiets = ChiTietDonHang::where('don_hang_id', $donHang->id)
+                    ->whereIn('san_pham_id', $data['xoaSanPhamIds'])
                     ->get();
 
-                foreach ($chiTiets as $chiTiet) {
-                    $sanPham = SanPham::find($chiTiet->sanpham_id);
-                    if ($sanPham) {
-                        $sanPham->soLuongTon  += $chiTiet->soLuong;
-                        $sanPham->save();
+                foreach ($chiTiets as $ct) {
+                    $sp = SanPham::find($ct->san_pham_id);
+                    if ($sp) {
+                        $sp->soLuongTon = (int)$sp->soLuongTon + (int)$ct->so_luong;
+                        $sp->save();
                     }
                 }
 
-                ChiTietDonHang::where('donHang_id', $donHang->id)
-                    ->whereIn('sanpham_id', $request->xoaSanPhamIds)
+                ChiTietDonHang::where('don_hang_id', $donHang->id)
+                    ->whereIn('san_pham_id', $data['xoaSanPhamIds'])
                     ->delete();
             }
 
-            // Cập nhật / thêm sản phẩm
-            if ($request->has('sanPhams')) {
-                foreach ($request->sanPhams as $item) {
-                    $sanPham = SanPham::find($item['id']);
-                    if (!$sanPham) continue;
-
-                    $chiTietCu = ChiTietDonHang::where('donHang_id', $donHang->id)
-                        ->where('sanpham_id', $item['id'])
-                        ->first();
-
-                    $soLuongCu = $chiTietCu ? $chiTietCu->soLuong : 0;
-                    $soLuongMoi = $item['soLuong'];
-                    $chenhLech = $soLuongMoi - $soLuongCu;
-
-                    if ($chenhLech > 0) {
-                        if ($sanPham->soLuongTon < $chenhLech) {
-                            DB::rollBack();
-                            return response()->json([
-                                'error' => 'Không đủ hàng tồn kho cho sản phẩm ' . $sanPham->tenSanPham
-                            ], 400);
-                        }
-                        $sanPham->soLuongTon  -= $chenhLech;
-                    } elseif ($chenhLech < 0) {
-                        $sanPham->soLuongTon  += abs($chenhLech);
+            // Cập nhật / thêm sản phẩm (snapshot vào chitietdonhang)
+            if (!empty($data['sanPhams']) && is_array($data['sanPhams'])) {
+                foreach ($data['sanPhams'] as $item) {
+                    // $item: { id, soLuong, giaBan?, giamGia?, VAT? }
+                    $sanPham = SanPham::find($item['id'] ?? null);
+                    if (!$sanPham) {
+                        continue;
                     }
 
+                    // Lấy chi tiết hiện có (nếu có) để tính chênh lệch kho
+                    $chiTietCu = ChiTietDonHang::where('don_hang_id', $donHang->id)
+                        ->where('san_pham_id', $sanPham->id)
+                        ->first();
+
+                    $soLuongCu  = $chiTietCu ? (int)$chiTietCu->so_luong : 0;
+                    $soLuongMoi = (int)($item['soLuong'] ?? 0);
+                    $chenhLech  = $soLuongMoi - $soLuongCu;
+
+                    // Kiểm tra & cập nhật tồn kho theo chênh lệch
+                    if ($chenhLech > 0) {
+                        if ((int)$sanPham->soLuongTon < $chenhLech) {
+                            DB::rollBack();
+                            return response()->json([
+                                'error' => 'Không đủ hàng tồn kho cho sản phẩm ' . ($sanPham->tenSanPham ?? $sanPham->id)
+                            ], 400);
+                        }
+                        $sanPham->soLuongTon = (int)$sanPham->soLuongTon - $chenhLech;
+                    } elseif ($chenhLech < 0) {
+                        $sanPham->soLuongTon = (int)$sanPham->soLuongTon + abs($chenhLech);
+                    }
                     $sanPham->save();
 
-                    // Cập nhật sau khi xử lý kho
+                    // Tính snapshot & thành tiền theo công thức:
+                    // thanh_tien = (gia * (1 + vat/100) - giam_gia) * so_luong
+                    $gia     = isset($item['giaBan']) ? (float)$item['giaBan'] : (float)$sanPham->giaBan;
+                    $vat     = isset($item['VAT']) ? (float)$item['VAT'] : (float)$sanPham->VAT;
+                    $giamGia = isset($item['giamGia']) ? (float)$item['giamGia'] : 0.0;
+                    $thanhTien = round(($gia * (1 + $vat / 100) - $giamGia) * $soLuongMoi, 2);
+
+                    // Ghi vào bảng chitietdonhang (snapshot)
                     ChiTietDonHang::updateOrCreate(
                         [
-                            'donHang_id' => $donHang->id,
-                            'sanpham_id' => $item['id']
+                            'don_hang_id' => $donHang->id,
+                            'san_pham_id' => $sanPham->id, // string(36)
                         ],
                         [
-                            'soLuong' => $item['soLuong'],
-                            'giaBan' => $item['giaBan'],
-                            'giamGia' => $item['giamGia'] ?? 0,
-                            'tongTien' => $item['tongTien']
+                            'ten_san_pham' => $sanPham->tenSanPham,
+                            'gia'          => $gia,
+                            'vat'          => $vat,
+                            'giam_gia'     => $giamGia,
+                            'so_luong'     => $soLuongMoi,
+                            'thanh_tien'   => $thanhTien,
                         ]
                     );
                 }
@@ -156,7 +182,7 @@ class HoaDonController extends Controller
 
             return response()->json([
                 'message' => 'Cập nhật hóa đơn thành công',
-                'data' => $hoaDon->load('donHang.chiTietDonHang')
+                'data'    => $hoaDon->load('donHang.chiTietDonHang')
             ]);
         } catch (\Exception $e) {
             DB::rollBack();
@@ -175,23 +201,27 @@ class HoaDonController extends Controller
         return response()->json(['message' => 'Xóa hóa đơn thành công.']);
     }
 
+    /**
+     * Hiển thị chi tiết hóa đơn (dùng snapshot từ chitietdonhang)
+     */
     public function show($id)
     {
         $hoaDon = HoaDon::with([
             'donHang.khachHang',
             'donHang.chiTietDonHang.sanPham'
         ])->findOrFail($id);
+
         $donHang = $hoaDon->donHang;
 
         $sanPhams = $donHang->chiTietDonHang->map(function ($item) {
             return [
-                'id' => $item->sanpham_id,
-                'tenSanPham' => $item->sanPham->ten ?? '',
-                'soLuong' => $item->soLuong,
-                'giaBan' => $item->giaBan,
-                'giamGia' => $item->giamGia,
-                'VAT' => $item->sanPham->VAT ?? 0,
-                'tongTien' => $item->tongTien
+                'id'          => $item->san_pham_id,
+                'tenSanPham'  => $item->ten_san_pham,     // snapshot
+                'soLuong'     => (int)$item->so_luong,
+                'giaBan'      => (float)$item->gia,       // snapshot
+                'VAT'         => (float)$item->vat,       // snapshot
+                'giamGia'     => (float)$item->giam_gia,  // snapshot
+                'tongTien'    => (float)$item->thanh_tien // snapshot
             ];
         });
 
@@ -199,25 +229,26 @@ class HoaDonController extends Controller
             'success' => true,
             'data' => [
                 'hoaDon' => [
-                    'id' => $hoaDon->id,
-                    'maHoaDon' => $hoaDon->maHoaDon,
-                    'phuongThucThanhToan' => $hoaDon->phuongThucThanhToan,
-                    'tongTienHang' => $hoaDon->tongTienHang,
-                    'giamGia' => $hoaDon->giamGiaSanPham,
-                    'thueVAT' => $hoaDon->thueVAT,
-                    'tongThanhToan' => $hoaDon->tongThanhToan,
-                    'ngayXuat' => $hoaDon->ngayXuat,
+                    'id'                   => $hoaDon->id,
+                    'maHoaDon'            => $hoaDon->ma_hoa_don,
+                    'phuongThucThanhToan' => $hoaDon->phuong_thuc_thanh_toan,
+                    'tongTienHang'        => (float)$hoaDon->tong_tien_hang,
+                    'giamVoucher'         => (float)$hoaDon->giam_voucher,
+                    'giamDiem'            => (float)$hoaDon->giam_diem,
+                    'thueVAT'             => (float)$hoaDon->tong_vat,
+                    'tongThanhToan'       => (float)$hoaDon->tong_thanh_toan,
+                    'ngayXuat'            => $hoaDon->ngay_xuat,
+                    // Offline: không trả phí vận chuyển, hoặc luôn 0 nếu muốn hiển thị
+                    // 'phiVanChuyen'      => 0
                 ],
                 'khachHang' => [
-                    'ten' => $donHang->khachHang->hoTen ?? 'Khách lẻ',
+                    'ten'         => $donHang->khachHang->hoTen ?? 'Khách lẻ',
                     'soDienThoai' => $donHang->khachHang->sdt ?? 'Không có'
                 ],
-                'trangThai' => $donHang->trangThai,
-                'ghiChu' => $donHang->ghiChu,
-                'sanPhams' => $sanPhams
+                'trangThai' => $donHang->trang_thai,
+                'ghiChu'    => $donHang->ghi_chu,
+                'sanPhams'  => $sanPhams
             ]
         ]);
     }
-
-
 }

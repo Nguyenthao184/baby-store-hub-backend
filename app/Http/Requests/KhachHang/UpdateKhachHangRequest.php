@@ -14,7 +14,7 @@ class UpdateKhachHangRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return auth()->check();;
+        return auth()->check();
     }
 
     /**
@@ -24,21 +24,14 @@ class UpdateKhachHangRequest extends FormRequest
      */
     public function rules(): array
     {
-        // Cập nhật hồ sơ: POST /api/khach-hang/profile
-        if ($this->is('api/khach-hang/profile') && $this->isMethod('post')) {
-            return $this->profileRules();
-        }
+        $route = $this->route()->getName();
 
-        // Thay avatar: POST /api/khach-hang/profile/avatar
-        if ($this->is('api/khach-hang/profile/avatar') && $this->isMethod('post')) {
-            return $this->avatarRules();
-        }
-
-        // Đổi mật khẩu: POST /api/khach-hang/profile/password
-        if ($this->is('api/khach-hang/profile/password') && $this->isMethod('post')) {
-            return $this->passwordRules();
-        }
-        return [];
+        return match ($route) {
+            'khach-hang.profile.update' => $this->profileRules(),
+            'khach-hang.profile.avatar' => $this->avatarRules(),
+            'khach-hang.profile.password' => $this->passwordRules(),
+            default => [],
+        };
     }
 
     /**
@@ -50,12 +43,12 @@ class UpdateKhachHangRequest extends FormRequest
         $ignoreId = $kh?->id;
 
         return [
-            'hoTen'    => ['required','string','max:255'],
-            'email'    => ['required','email','max:255',
-                Rule::unique('KhachHang','email')->ignore($ignoreId)],
-            'diaChi'   => ['required','string','max:255'],
-            'ngaySinh' => ['required','date','before:today'],
-            'sdt'      => ['required','regex:/^(0|\+84)[0-9]{8,12}$/'],
+            'hoTen'    => ['required', 'string', 'max:255'],
+            'email'    => ['required', 'email', 'max:255',
+                Rule::unique('KhachHang', 'email')->ignore($ignoreId)],
+            'diaChi'   => ['required', 'string', 'max:255'],
+            'ngaySinh' => ['required', 'date', 'before:today'],
+            'sdt'      => ['required', 'regex:/^(0|\+84)[0-9]{8,12}$/'],
         ];
     }
 
@@ -65,7 +58,7 @@ class UpdateKhachHangRequest extends FormRequest
     protected function avatarRules(): array
     {
         return [
-            'avatar' => ['required','image','mimes:jpg,jpeg,png,webp','max:2048'], // 2MB
+            'avatar' => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'], // 2MB
         ];
     }
 
@@ -76,11 +69,10 @@ class UpdateKhachHangRequest extends FormRequest
     {
         return [
             'current_password' => ['required', 'current_password:sanctum'],
-            'password'         => ['required','string','min:8','confirmed'],
-
+            'password'         => ['required', 'string', 'min:8', 'confirmed'],
         ];
     }
-    
+
     /**
      * Thông báo lỗi chung
      */

@@ -2,44 +2,54 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
+use App\Http\Requests\KhachHang\StoreKhachHangRequest;
 use App\Models\KhachHang;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Http\Request;
 
 class KhachHangController extends Controller
 {
+    /**
+     * GET /api/khach-hang?q=...
+     * Tìm kiếm khách hàng theo họ tên hoặc số điện thoại
+     */
     public function timKiem(Request $request)
     {
-        $keyword = $request->query('q');
+        $q = trim((string) $request->query('q', ''));
 
-        $khachHangs = DB::table('KhachHang')
-            ->where('hoTen', 'like', '%' . $keyword . '%')
-            ->orWhere('sdt', 'like', '%' . $keyword . '%')
-            ->select('id', 'hoTen', 'sdt', 'email', 'diaChi')
-            ->get();
+        $query = KhachHang::query()
+            ->select(['id', 'hoTen', 'sdt', 'email', 'diaChi']);
 
-        return response()->json($khachHangs);
+        if ($q !== '') {
+            $query->where(function ($sub) use ($q) {
+                $sub->where('hoTen', 'like', "%{$q}%")
+                    ->orWhere('sdt', 'like', "%{$q}%");
+            });
+        }
+
+        return response()->json($query->get());
     }
 
-    public function themKhachHang(Request $request)
+    /**
+     * POST /api/khach-hang
+     * Thêm khách hàng mới (chỉ nhập họ tên và số điện thoại)
+     */
+    public function themKhachHang(StoreKhachHangRequest $request)
     {
-        $validated = $request->validate([
-            'hoTen' => 'required|string|max:255',
-            'sdt' => 'required|string|max:15|unique:KhachHang,sdt',
-        ]);
+        $data = $request->validated();
 
-        $id = DB::table('KhachHang')->insertGetId([
-            'hoTen' => $validated['hoTen'],
-            'sdt' => $validated['sdt'],
-            'email' => null,
-            'diaChi' => null,
-            'ngaySinh' => null,
+        $kh = KhachHang::create([
+            'hoTen'       => $data['hoTen'],
+            'sdt'         => $data['sdt'],
+            'email'       => null,
+            'diaChi'      => null,
+            'ngaySinh'    => null,
+            'avatar'      => null,
             'taiKhoan_id' => null,
         ]);
 
         return response()->json([
             'message' => 'Thêm khách hàng thành công',
-            'id' => $id,
-        ]);
+            'id'      => $kh->id,
+        ], 201);
     }
 }

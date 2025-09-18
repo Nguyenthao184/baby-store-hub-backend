@@ -6,6 +6,7 @@ use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 use App\Models\SanPham;
 use App\Models\DonHang;
+use Illuminate\Support\Str;
 
 class ChiTietDonHangSeeder extends Seeder
 {
@@ -18,31 +19,38 @@ class ChiTietDonHangSeeder extends Seeder
             return;
         }
 
-        DB::table('chitietdonhang')->truncate();
+        // Xóa dữ liệu cũ trong bảng chitietdonhang
+        DB::table('chitietdonhang')->delete();
 
         $records = [];
 
         foreach ($donHangs as $donHang) {
+            // Lấy ngẫu nhiên từ 1 đến 3 sản phẩm cho mỗi đơn hàng
             $sanPhamsRandom = $sanPhams->random(rand(1, 3));
 
             foreach ($sanPhamsRandom as $sp) {
-                $soLuong = rand(1, 5);
-                $giaGoc = $sp->giaBan;
-                $vat = floatval($sp->VAT ?? 0);
-                $giaBan = $giaGoc + ($giaGoc * $vat / 100);
-                $tongTien = $giaBan * $soLuong;
+                $soLuong = rand(1, 5); // Số lượng ngẫu nhiên từ 1 đến 5
+                $giaGoc = $sp->giaBan; // Giá gốc của sản phẩm
+                $vat = floatval($sp->vat ?? 0); // VAT của sản phẩm
+                $giamGia = rand(0, 5000); // Giảm giá ngẫu nhiên (nếu có)
+                $giaBan = $giaGoc * (1 + $vat / 100); // Giá sau VAT
+                $thanhTien = ($giaBan - $giamGia) * $soLuong; // Thành tiền
 
                 $records[] = [
-                    'donhang_id' => $donHang->id,
-                    'sanpham_id' => $sp->id,
-                    'soLuong' => $soLuong,
-                    'giaBan' => $giaBan,
-                    'giamGia' => 0,
-                    'tongTien' => $tongTien,
+                    'id' => Str::uuid(),
+                    'don_hang_id' => $donHang->id,
+                    'san_pham_id' => $sp->id,
+                    'ten_san_pham' => $sp->tenSanPham,
+                    'gia' => $giaGoc,
+                    'vat' => $vat,
+                    'giam_gia' => $giamGia,
+                    'so_luong' => $soLuong,
+                    'thanh_tien' => $thanhTien,
                 ];
             }
         }
 
+        // Chèn dữ liệu vào bảng chitietdonhang
         DB::table('chitietdonhang')->insert($records);
     }
 }

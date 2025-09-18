@@ -4,6 +4,8 @@ namespace App\Providers;
 
 use Illuminate\Support\ServiceProvider;
 use Carbon\Carbon;
+use App\Models\ThanhToan;
+use App\Observers\ThanhToanObserver;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -22,5 +24,6 @@ class AppServiceProvider extends ServiceProvider
     {
         Carbon::setLocale('vi');
         date_default_timezone_set('Asia/Ho_Chi_Minh');
+        ThanhToan::observe(ThanhToanObserver::class);
     }
 }

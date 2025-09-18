@@ -13,40 +13,57 @@ class HoaDonSeeder extends Seeder
 {
     public function run(): void
     {
-        $donHangs = DonHang::orderByDesc('ngayTao')->take(10)->get();
-        $phuongThucs = ['TienMat', 'ChuyenKhoan', 'The'];
+        // Lấy danh sách đơn hàng mới nhất
+        $donHangs = DonHang::orderByDesc('ngay_tao')->take(10)->get();
+        $phuongThucs = ['cod', 'momo', 'vnpay']; // Các phương thức thanh toán
         $now = Carbon::now();
         $hoaDons = [];
         $startIndex = 1;
 
-        DB::table('HoaDon')->truncate();
+        // Xóa dữ liệu cũ trong bảng hoadon
+        DB::table('hoadon')->delete();
 
         foreach ($donHangs as $i => $donHang) {
-            $chiTiets = ChiTietDonHang::where('donhang_id', $donHang->id)->get();
+            // Lấy chi tiết đơn hàng liên quan
+            $chiTiets = ChiTietDonHang::where('don_hang_id', $donHang->id)->get();
 
             if ($chiTiets->isEmpty()) continue;
 
-            $tongTienTruocVAT = $chiTiets->sum('tongTien');
-            $giamGia = [0, 5000, 10000, 20000][rand(0, 3)];
-            $vat = 0.08 * $tongTienTruocVAT;
+            // Tính toán tổng tiền hàng và VAT
+            $tongTienHang = $chiTiets->sum(function ($chiTiet) {
+                return $chiTiet->thanh_tien;
+            });
+            $tongVAT = $chiTiets->sum(function ($chiTiet) {
+                return $chiTiet->gia * $chiTiet->so_luong * (floatval($chiTiet->vat ?? 0) / 100);
+            });
 
-            $tongTienHang = $tongTienTruocVAT + $vat;
-            $tongThanhToan = $tongTienHang - $giamGia;
-            $maHoaDon = 'HD' . str_pad($startIndex++, 6, '0', STR_PAD_LEFT);
+            // Lấy các giá trị từ đơn hàng
+            $giamVoucher = $donHang->giam_voucher;
+            $giamDiem = $donHang->giam_diem;
+            $phiVanChuyen = $donHang->phi_van_chuyen;
+
+            // Tính tổng thanh toán
+            $tongThanhToan = $tongTienHang + $tongVAT - $giamVoucher - $giamDiem + $phiVanChuyen;
+
+            // Tạo mã hóa đơn
+            $maHoaDon = 'HD-' . now()->year . '-' . str_pad($startIndex++, 6, '0', STR_PAD_LEFT);
 
             $hoaDons[] = [
                 'id' => (string) Str::uuid(),
-                'maHoaDon' => $maHoaDon,
-                'donHang_id' => $donHang->id,
-                'ngayXuat' => $now->copy()->subDays(rand(0, 10)),
-                'tongTienHang' => round($tongTienHang, 2),
-                'giamGiaSanPham' => $giamGia,
-                'thueVAT' => round($vat, 2),
-                'tongThanhToan' => round($tongThanhToan, 2),
-                'phuongThucThanhToan' => $phuongThucs[$i % 3],
+                'ma_hoa_don' => $maHoaDon,
+                'don_hang_id' => $donHang->id,
+                'ngay_xuat' => $now->copy()->subDays(rand(0, 10)),
+                'tong_tien_hang' => round($tongTienHang, 2),
+                'tong_vat' => round($tongVAT, 2),
+                'giam_voucher' => round($giamVoucher, 2),
+                'giam_diem' => round($giamDiem, 2),
+                'phi_van_chuyen' => round($phiVanChuyen, 2),
+                'tong_thanh_toan' => round($tongThanhToan, 2),
+                'phuong_thuc_thanh_toan' => $phuongThucs[$i % 3],
             ];
         }
 
-        DB::table('HoaDon')->insert($hoaDons);
+        // Chèn dữ liệu vào bảng hoadon
+        DB::table('hoadon')->insert($hoaDons);
     }
 }

@@ -35,5 +35,7 @@ class DatabaseSeeder extends Seeder
         $this->call(PhieuNhapKhoSeeder::class);
         $this->call(ChiTietPhieuNhapKhoSeeder::class);
         $this->call(PhieuKiemKhoSeeder::class);
+        $this->call(VoucherSeeder::class);
+        $this->call(DonViVanChuyenSeeder::class);
     }
 }

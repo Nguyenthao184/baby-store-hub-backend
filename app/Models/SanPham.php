@@ -70,4 +70,9 @@ class SanPham extends Model
     {
         return $this->hasMany(ChiTietPhieuKiemKho::class, 'san_pham_id');
     }
+
+    public function chiTietDonHang()
+    {
+        return $this->hasMany(ChiTietDonHang::class, 'san_pham_id', 'id');
+    }
 }

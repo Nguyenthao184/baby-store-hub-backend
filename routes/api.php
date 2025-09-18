@@ -12,6 +12,7 @@ use App\Http\Controllers\NhaCungCapController;
 use App\Http\Controllers\PhieuKiemKhoController;
 use App\Http\Controllers\PhieuNhapKhoController;
 use App\Http\Controllers\KhachHangProfileController;
+use App\Http\Controllers\CheckoutController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Cache;
@@ -65,12 +66,7 @@ Route::get('/san-pham/kho/{khoId}', [SanPhamController::class, 'getByWarehouse']
 
 //DonHang (Products) CRUD routes
 Route::post('/ban-hang/san-pham', [SanPhamController::class, 'search']); //Tìm sản phẩm
-Route::post('/ban-hang/tao-don', [DonHangController::class, 'taoDon']); //Tạo đơn hàng
-Route::get('/ban-hang/khach-hang', [KhachHangController::class, 'timKiem']); //Tìm khách hàng
-Route::post('/ban-hang/them-khach-hang', [KhachHangController::class, 'themKhachHang']); //Thêm khách hàng
 Route::post('/thanh-toan', [DonHangController::class, 'thanhToan']); //Thanh toán
-
-//Khách hàng
 Route::get('/khach-hang', [KhachHangController::class, 'timKiem']);
 Route::post('/khach-hang', [KhachHangController::class, 'themKhachHang']);
 
@@ -130,5 +126,6 @@ Route::middleware(['auth:sanctum','authRole:KhachHang'])->group(function () {
     
 });
 
-
-
+// Checkout route
+Route::post('/checkout/dat-hang', [CheckoutController::class, 'datHangOnline']);
+Route::get('/vnpay/return', [CheckoutController::class, 'vnpayReturn']); // FE redirect

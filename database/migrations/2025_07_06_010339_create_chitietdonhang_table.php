@@ -12,17 +12,24 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('chitietdonhang', function (Blueprint $table) {
-            $table->bigIncrements('id');
-            $table->unsignedBigInteger('donhang_id');
-            $table->string('sanpham_id', 36); 
+            $table->uuid('id')->primary();
+            $table->uuid('don_hang_id')->index();
+            $table->string('san_pham_id', 36)->index();       // khớp với SanPham
 
-            $table->integer('soLuong');
-            $table->decimal('giaBan', 15, 2);
-            $table->decimal('giamGia', 15, 2)->default(0);
-            $table->decimal('tongTien', 15, 2);
+            // Snapshot giá tại thời điểm đặt
+            $table->string('ten_san_pham', 255);
+            $table->decimal('gia', 15, 2);                    // giá gốc
+            $table->decimal('vat', 5, 2)->default(0);         // % VAT lúc đặt
+            $table->decimal('giam_gia', 15, 2)->default(0);   // số tiền giảm riêng item (nếu có)
+            $table->unsignedInteger('so_luong');
 
-            $table->foreign('donhang_id')->references('id')->on('donhang')->onDelete('cascade');
-            $table->foreign('sanpham_id')->references('id')->on('SanPham')->onDelete('cascade'); 
+            // Thành tiền dòng: (gia * (1 + vat/100) - giam_gia) * so_luong
+            $table->decimal('thanh_tien', 15, 2);
+
+            $table->timestamps();
+
+            $table->foreign('don_hang_id')->references('id')->on('donhang')->cascadeOnDelete();
+
         });
     }
 

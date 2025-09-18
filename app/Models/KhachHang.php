@@ -20,4 +20,9 @@ protected $table = 'KhachHang';
     ];
 
     public $timestamps = false;
+
+    public function donHangs()
+    {
+        return $this->hasMany(DonHang::class, 'khach_hang_id');
+    }
 }

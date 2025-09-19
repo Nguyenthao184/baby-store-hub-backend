@@ -108,9 +108,8 @@ Route::prefix('phieu-nhap-kho')->group(function () {
 });
 });
 
-Route::middleware(['auth:sanctum','authRole:KhachHang'])->group(function () { 
+    Route::middleware(['auth:sanctum','authRole:KhachHang'])->group(function () { 
     // Profile routes for KhachHang 
-    Route::post('/auth/logout', [AuthController::class, 'logout']);
 
     Route::get('/khach-hang/profile', [KhachHangProfileController::class, 'show']); // Lấy hồ sơ cá nhân 
     Route::post('/khach-hang/profile', [KhachHangProfileController::class, 'update']); // Cập nhật hồ sơ 
@@ -123,9 +122,12 @@ Route::middleware(['auth:sanctum','authRole:KhachHang'])->group(function () {
     Route::post('/gio-hang/cap-nhat/{sanPhamId}', [GioHangController::class, 'capNhat']);
     Route::delete('/gio-hang/xoa/{sanPhamId}', [GioHangController::class, 'xoa']);
     Route::delete('/gio-hang/xoa-het', [GioHangController::class, 'xoaHet']);
+
+    Route::post('/gio-hang/tinh-tong', [GioHangController::class, 'tinhTong']);
+Route::post('/checkout/dat-hang', [CheckoutController::class, 'datHangOnline']);
+
+
     
 });
 
-// Checkout route
-Route::post('/checkout/dat-hang', [CheckoutController::class, 'datHangOnline']);
 Route::get('/vnpay/return', [CheckoutController::class, 'vnpayReturn']); // FE redirect

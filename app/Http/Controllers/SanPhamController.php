@@ -61,7 +61,9 @@ class SanPhamController extends Controller
                 'moTa' => $request->moTa,
                 'danhMuc_id' => $request->danhMuc_id,
                 //'kho_id' => $request->kho_id,
-                'hinhAnh' => $hinhAnhPath
+                'hinhAnh' => $hinhAnhPath,
+                'is_noi_bat' => $request->is_noi_bat ?? false,
+                'flash_sale' => $request->flash_sale ?? 0
             ]);
 
             // Tăng số lượng sản phẩm cho danh mục
@@ -87,17 +89,13 @@ class SanPhamController extends Controller
                 'message' => 'Tạo sản phẩm thành công',
                 'data' => $sanPham
             ], 201);
-        
         } catch (\Exception $e) {
             DB::rollBack();
             return response()->json([
                 'success' => false,
                 'message' => 'Lỗi: ' . $e->getMessage()
             ], 500);
-            
         }
-
-
     }
 
     /**
@@ -146,7 +144,7 @@ class SanPhamController extends Controller
 
             $oldDanhMucId = $sanPham->danhMuc_id;
             $newDanhMucId = $request->danhMuc_id;
-        
+
 
             $updateData = $request->only([
                 'maSanPham',
@@ -156,7 +154,9 @@ class SanPhamController extends Controller
                 'giaBan',
                 'soLuongTon',
                 'moTa',
-                'danhMuc_id'
+                'danhMuc_id',
+                'is_noi_bat',
+                'flash_sale',
             ]);
 
             // Xử lý upload hình ảnh mới
@@ -187,23 +187,6 @@ class SanPhamController extends Controller
                 }
             }
 
-            // Cập nhật số lượng sản phẩm cho kho khi thay đổi
-            // if ($oldKhoId !== $newKhoId) {
-            //     // Giảm số lượng ở kho cũ
-            //     if ($oldKhoId) {
-            //         $oldKho = Kho::find($oldKhoId);
-            //         if ($oldKho && $oldKho->soLuongSanPham > 0) {
-            //             $oldKho->decrement('soLuongSanPham');
-            //         }
-            //     }
-            //     // Tăng số lượng ở kho mới
-            //     if ($newKhoId) {
-            //         $newKho = Kho::find($newKhoId);
-            //         if ($newKho) {
-            //             $newKho->increment('soLuongSanPham');
-            //         }
-            //     }
-            // }
 
             DB::commit();
 

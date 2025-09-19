@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Models\SanPham;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -90,7 +91,7 @@ class SanPhamSeeder extends Seeder
                 ['Nhiệt kế hồng ngoại đo trán Microlife FR1MF1', 'nhiet-ke-hong-ngoai-do-tran-microlife-fr1mf.png'],
                 ['Máy hút sữa điện đơn Spectra M1', 'may-hut-sua-dien-don-spectra-m1.jpg'],
                 ['Khăn tắm cotton ConCung Good BM9T màu trắng', 'khan-tam-cotton-concung-good-bm9t-mau-trang.jpg'],
-                ['Xe đẩy hai chiều cao cấp Cool Baby màu xám', 'xe-day-2-chieu-cao-cap-cool-baby-c008h-xam.jpg'],  
+                ['Xe đẩy hai chiều cao cấp Cool Baby màu xám', 'xe-day-2-chieu-cao-cap-cool-baby-c008h-xam.jpg'],
                 ['Bình tập uống chống tràn MAM Starter Cup 150ml màu hồng', 'binh-tap-uong-mam-starter-cup-150ml-girls.jpg'],
             ],
 
@@ -115,8 +116,8 @@ class SanPhamSeeder extends Seeder
                 ['Đồ chơi bé trổ tài đầu bếp Polesie', 'do-choi-be-tro-tai-dau-bep-polesie.jpg'],
                 ['Lưới thảy vòng vịt bánh xe HT078 (TM)', 'luoi-thay-vong-vit-banh-xe.jpg'],
                 ['Xe Tập Đi Cho Bé Autoru AUBW02 (màu ghế ngồi ngẫu nhiên)', 'xe-tap-di-cho-be-autoru-aubw02.jpg'],
-                
-              
+
+
             ],
         ];
 
@@ -142,26 +143,6 @@ class SanPhamSeeder extends Seeder
                 $quantities[$randIndex]++;
             }
 
-            // foreach ($products as $i => $product) {
-            //     $maSanPham = 'SP' . str_pad($counter, 4, '0', STR_PAD_LEFT);
-
-            //     $sanPhamData[] = [
-            //         'id' => (string) Str::uuid(),
-            //         'maSanPham' => $maSanPham,
-            //         'tenSanPham' => $product[0],
-            //         'maSKU' => strtoupper(Str::random(8)),
-            //         'VAT' => 8.00,
-            //         'giaBan' => random_int(100000, 1000000),
-            //         'soLuongTon' => $quantities[$i],
-            //         'moTa' => 'Sản phẩm: ' . $product[0],
-            //         'danhMuc_id' => $danhMuc->id,
-            //         'hinhAnh' => 'san_pham/' . $product[1],
-            //         'thongSoKyThuat' => $this->generateThongSo($product[0]),
-            //         'ngayTao' => $now,
-            //         'ngayCapNhat' => null,
-            //     ];
-            //     $counter++;
-            // }
             // Giá ngẫu nhiên rồi làm tròn về bậc 1.000đ (hoặc 500đ tuỳ bạn)
             $gia = random_int(100_000, 1_000_000);
             // tròn 1.000đ:
@@ -169,7 +150,8 @@ class SanPhamSeeder extends Seeder
             // nếu muốn tròn 500đ: $gia = (int) (round($gia / 500) * 500);
             foreach ($products as $i => $product) {
                 $maSanPham = 'SP' . str_pad($counter, 4, '0', STR_PAD_LEFT);
-                
+                $isFeatured = (bool) rand(0, 1);
+
                 $sanPhamData[] = [
                     'id' => (string) Str::uuid(),
                     'maSanPham' => $maSanPham,
@@ -181,17 +163,18 @@ class SanPhamSeeder extends Seeder
                     'moTa' => 'Sản phẩm ' . $product[0] . ' là lựa chọn chất lượng cao được nhiều mẹ tin dùng. Đảm bảo an toàn, tiện lợi và phù hợp cho nhu cầu chăm sóc mẹ và bé hiện đại. Xuất xứ rõ ràng, đạt tiêu chuẩn an toàn, và phù hợp với nhiều độ tuổi hoặc mục đích sử dụng.',
                     'danhMuc_id' => $danhMuc->id,
                     'hinhAnh' => 'san_pham/' . $product[1],
-                    'thongSoKyThuat' => $this->generateThongSo($product[0]),
+                    'thongSoKyThuat' => $this->generateThongSo($product[0], $categoryName),
                     'ngayTao' => $now,
                     'ngayCapNhat' => null,
-                    'is_noi_bat' => rand(0, 1),
+                    'is_noi_bat'      => $isFeatured ? 1 : 0,
+                    'flash_sale'   => !$isFeatured ? (random_int(5, 20) / 100) : 0,
                 ];
                 $counter++;
             }
         }
         // Insert tất cả
         foreach ($sanPhamData as $data) {
-            \App\Models\SanPham::create($data);
+            SanPham::create($data);
         }
 
         // Cập nhật số lượng sản phẩm mỗi danh mục
@@ -199,193 +182,242 @@ class SanPhamSeeder extends Seeder
     }
 
 
-    protected function generateThongSo(string $tenSanPham): array
+    protected function generateThongSo(string $tenSanPham, string $danhMuc): array
     {
-        // Nhóm Sữa
-        if (str_contains($tenSanPham, 'Sữa')) {
-            return [
-                'Độ tuổi' => '2 - 6 tuổi',
-                'Khối lượng' => '800g / hộp',
-                'Hạn sử dụng' => '18 tháng kể từ ngày sản xuất',
-                'Nơi sản xuất' => 'Singapore',
-                'Nhiệt độ pha' => '37 - 40°C',
-                'Hướng dẫn sử dụng' => 'Pha 4 muỗng với 180ml nước ấm ở 40°C, lắc đều, sử dụng trong vòng 2 giờ',
-                'Thành phần chính' => ['DHA', 'ARA', 'Sắt', 'Kẽm', 'Canxi', 'Vitamin A, D, E'],
-                'Bảo quản' => 'Bảo quản nơi khô ráo, tránh ánh nắng trực tiếp. Đậy nắp kín sau khi mở.',
-                'Đặc tính' => ['Tăng đề kháng', 'Phát triển trí tuệ', 'Tăng chiều cao'],
-                'Lưu ý' => 'Không dùng cho trẻ dị ứng với đạm sữa bò. Không dùng lò vi sóng để hâm.',
-                'Lưu ý' => 'Không dùng cho trẻ dị ứng với đạm sữa bò. Không dùng lò vi sóng để hâm.'
+        $has = fn(string $kw) => mb_stripos($tenSanPham, $kw) !== false;
 
-            ];
-        }
-
-        // Nhóm Bỉm, Tã
-        if (str_contains($tenSanPham, 'Bỉm') || str_contains($tenSanPham, 'Tã')) {
-            return [
-                'Size' => 'NB đến XXL',
-                'Cân nặng' => 'Từ 3kg đến trên 17kg',
-                "Số lượng miếng" => "40 - 72 miếng/gói",
-                "Chất liệu" => ["Hạt polymer siêu thấm", "Vải không dệt", "Sợi tre tự nhiên"],
-                "Tính năng" => ["Vạch báo đầy", "Chống tràn", "Thoáng khí 4 chiều"],
-                "Hạn sử dụng" => "36 tháng kể từ NSX",
-                "Xuất xứ" => "Việt Nam / Nhật Bản / Hàn Quốc",
-                "Lưu ý" => "Thay bỉm 3-4 tiếng/lần để bảo vệ làn da bé."
-            ];
-        }
-
-        // Nhóm Thực phẩm - Đồ uống
-        if (
-            str_contains($tenSanPham, 'Bột') ||
-            str_contains($tenSanPham, 'Cháo') ||
-            str_contains($tenSanPham, 'Nước') ||
-            str_contains($tenSanPham, 'Súp')
-        ) {
-            return [
-                'Khối lượng' => '120g - 200g',
-                'Hạn sử dụng' => '12 tháng',
-                'Hướng dẫn sử dụng' => 'Mở bao bì, hâm nóng cách thuỷ hoặc trong lò vi sóng. Cho bé dùng ngay.',
-                'Thành phần' => ['Gạo', 'Rau củ', 'Thịt gà', 'Vitamin nhóm B', 'Canxi'],
-                'Đối tượng sử dụng' => 'Trẻ từ 6 tháng tuổi trở lên',
-                'Xuất xứ' => 'Việt Nam',
-                'Bảo quản' => 'Bảo quản nơi mát, tránh ánh sáng, sử dụng trong 24h sau khi mở bao bì.',
-            ];
-        }
-
-        // Nhóm Sức khỏe & Vitamin
-        if (
-            str_contains($tenSanPham, 'Vitamin') ||
-            str_contains($tenSanPham, 'Siro') ||
-            str_contains($tenSanPham, 'Men') ||
-            str_contains($tenSanPham, 'DHA')
-        ) {
-            return [
-                'Dung tích / Khối lượng' => '100ml / 60 viên',
-                'Hạn sử dụng' => '24 tháng',
-                'Đối tượng sử dụng' => 'Trẻ từ 1 tuổi trở lên',
-                'Thành phần chính' => ['Vitamin C', 'DHA', 'Kẽm', 'Probiotic', 'Lysine'],
-                'Hướng dẫn sử dụng' => 'Uống trực tiếp bằng thìa hoặc pha loãng với nước, dùng vào buổi sáng.',
-                'Bảo quản' => 'Để nơi khô ráo, tránh ánh nắng và nhiệt độ cao.',
-                'Lưu ý' => 'Tham khảo ý kiến bác sĩ nếu bé đang dùng thuốc điều trị.',
-            ];
-        }
-
-        // Nhóm Mỹ phẩm
-        if (
-            str_contains($tenSanPham, 'Kem') ||
-            str_contains($tenSanPham, 'Sữa tắm') ||
-            str_contains($tenSanPham, 'Dầu')
-        ) {
-            return [
-                'Dung tích' => '200ml - 500ml',
-                'Công dụng' => 'Dưỡng ẩm, chống hăm, làm dịu kích ứng, làm sạch nhẹ nhàng',
-                'Thành phần' => ['Chiết xuất cúc La Mã', 'Vitamin E', 'Panthenol'],
-                'Hướng dẫn sử dụng' => 'Thoa trực tiếp lên da sau khi tắm hoặc khi cần thiết.',
-                'Hạn sử dụng' => '36 tháng',
-                'Xuất xứ' => 'Pháp / Đức / Nhật Bản',
-                'Lưu ý' => 'Tránh để dính vào mắt. Ngưng sử dụng nếu có dấu hiệu kích ứng.',
-            ];
-        }
-
-        // Nhóm Đồ dùng - Gia dụng
-        // if (
-        //     str_contains($tenSanPham, 'Bình') ||
-        //     str_contains($tenSanPham, 'Máy') ||
-        //     str_contains($tenSanPham, 'Ghế') ||
-        //     str_contains($tenSanPham, 'Nhiệt kế')
-        // ) {
-        //     return [
-        //         'Chất liệu' => 'Nhựa PP, Silicon, Thép không gỉ',
-        //         'Tính năng' => ['Chịu nhiệt cao', 'Kháng khuẩn', 'Dễ tháo lắp'],
-        //         'Bảo hành' => '6 - 12 tháng',
-        //         'Tiêu chuẩn' => 'BPA Free, CE Certified',
-        //         'Xuất xứ' => 'Nhật Bản / Hàn Quốc',
-        //         'Hướng dẫn vệ sinh' => 'Rửa bằng nước ấm, có thể tiệt trùng bằng hơi nước hoặc lò vi sóng.',
-        //         'Lưu ý' => 'Kiểm tra tình trạng sản phẩm định kỳ để đảm bảo an toàn cho bé.',
-        //     ];
-        // }
-        if (str_contains($tenSanPham, 'Bình')) {
-            return [
-                'Chất liệu' => 'Nhựa PP an toàn, không chứa BPA',
-                'Dung tích' => '150ml - 250ml',
-                'Tính năng' => ['Chống sặc', 'Van chống đầy hơi', 'Dễ vệ sinh'],
-                'Xuất xứ' => 'Mỹ / Nhật Bản',
-                'Bảo hành' => '6 tháng',
-                'Lưu ý' => 'Tiệt trùng trước và sau khi sử dụng',
-            ];
-        }
-
-        if (str_contains($tenSanPham, 'Máy')) {
-            return [
-                'Loại máy' => 'Tiệt trùng / Hâm sữa / Xay đồ ăn',
-                'Chất liệu' => 'Thép không gỉ, nhựa ABS cao cấp',
-                'Công suất' => '300W - 600W',
-                'Tính năng' => ['Khử trùng bằng hơi nước', 'Tự động ngắt điện', 'Dễ tháo lắp'],
-                'Xuất xứ' => 'Trung Quốc / Nhật Bản',
-                'Bảo hành' => '12 tháng',
-            ];
-        }
-
-        if (str_contains($tenSanPham, 'Ghế')) {
-            return [
-                'Loại ghế' => 'Ghế ăn dặm / Ghế bập bênh',
-                'Chất liệu' => 'Khung thép sơn tĩnh điện, đệm da PU',
-                'Tính năng' => ['Gập gọn', 'Điều chỉnh độ cao', 'Dây đai an toàn'],
-                'Trọng lượng chịu tải' => 'Lên đến 20kg',
-                'Xuất xứ' => 'Việt Nam / Thái Lan',
-                'Lưu ý' => 'Luôn giám sát trẻ khi sử dụng.',
-            ];
-        }
-
-        if (str_contains($tenSanPham, 'Nhiệt kế')) {
-            return [
-                'Loại' => 'Nhiệt kế điện tử / Nhiệt kế hồng ngoại',
-                'Thời gian đo' => '1 - 3 giây',
-                'Độ chính xác' => '± 0.2°C',
-                'Tính năng' => ['Màn hình LCD', 'Báo sốt bằng màu', 'Lưu kết quả đo'],
-                'Xuất xứ' => 'Hàn Quốc / Đức',
-                'Bảo hành' => '12 tháng',
-                'Lưu ý' => 'Không rơi vỡ, tránh tiếp xúc nước.',
-            ];
-        }
-
-
-        // Nhóm Thời trang - Phụ kiện
-        if (
-            str_contains($tenSanPham, 'Bộ quần áo') ||
-            str_contains($tenSanPham, 'Mũ') ||
-            str_contains($tenSanPham, 'Vớ') ||
-            str_contains($tenSanPham, 'Yếm')
-        ) {
-            return [
-                'Size' => 'NB - XL (0 - 3 tuổi)',
-                'Chất liệu' => 'Cotton 100%, vải sợi tre',
-                'Màu sắc' => 'Nhiều màu sắc pastel & trung tính',
-                'Hướng dẫn giặt' => 'Giặt nhẹ bằng tay hoặc máy giặt chế độ dịu nhẹ, không dùng chất tẩy mạnh',
-                'Lưu ý' => 'Ủi ở nhiệt độ thấp. Tránh phơi dưới ánh nắng gắt để giữ màu vải.',
-            ];
-        }
-
-        // Nhóm Đồ chơi - Học tập
-        if (
-            str_contains($tenSanPham, 'Đồ chơi') ||
-            str_contains($tenSanPham, 'Xe') ||
-            str_contains($tenSanPham, 'Bảng')
-        ) {
-            return [
-                'Độ tuổi sử dụng' => '6 tháng - 5 tuổi',
-                'Chất liệu' => 'Nhựa ABS, Gỗ tự nhiên',
-                'Tiêu chuẩn' => 'EN71, ASTM',
-                'Lợi ích' => ['Phát triển tư duy logic', 'Tăng khả năng quan sát', 'Giúp phối hợp tay mắt'],
-                'Hướng dẫn sử dụng' => 'Chơi cùng người lớn để hỗ trợ bé học hỏi và phát triển toàn diện.',
-                'Lưu ý' => 'Tránh để các chi tiết nhỏ gần trẻ dưới 3 tuổi không có người giám sát.',
-            ];
-        }
-
-        // Mặc định
-        return [
-            'Thông số' => 'Đang cập nhật',
+        // ==== MAP THEO DANH MỤC (mặc định) ====
+        $map = [
+            'Thế giới sữa' => [
+                'Độ tuổi'           => '0 - 6 tuổi',
+                'Khối lượng'        => '200g - 900g',
+                'Hạn sử dụng'       => '12 - 24 tháng',
+                'Nơi sản xuất'      => 'VN / Nhật / Singapore',
+                'Nhiệt độ pha'      => '37 - 40°C',
+                'Hướng dẫn sử dụng' => 'Pha theo hướng dẫn bao bì, dùng trong 2 giờ',
+                'Thành phần chính'  => ['DHA', 'ARA', 'Sắt', 'Kẽm', 'Canxi', 'Vitamin A,D,E'],
+                'Bảo quản'          => 'Khô ráo, tránh nắng. Đậy kín sau khi mở',
+                'Đặc tính'          => ['Tăng đề kháng', 'Phát triển trí tuệ', 'Tăng chiều cao'],
+                'Lưu ý'             => 'Không dùng cho trẻ dị ứng đạm sữa bò',
+            ],
+            'Bỉm, tã' => [
+                'Size'              => 'NB - XXL',
+                'Cân nặng'          => '3kg → >17kg',
+                'Số lượng miếng'    => '40 - 72 miếng/gói',
+                'Chất liệu'         => ['Hạt siêu thấm', 'Vải không dệt', 'Sợi tre'],
+                'Tính năng'         => ['Vạch báo đầy', 'Chống tràn', 'Thoáng khí 4 chiều'],
+                'Hạn sử dụng'       => '36 tháng kể từ NSX',
+                'Xuất xứ'           => 'VN / Nhật / Hàn',
+                'Lưu ý'             => 'Thay 3-4 tiếng/lần để bảo vệ da bé',
+            ],
+            'Thực phẩm - Đồ uống' => [
+                'Khối lượng'        => '50g - 500g',
+                'Hạn sử dụng'       => '6 - 18 tháng',
+                'Thành phần'        => ['Ngũ cốc', 'Rau củ', 'Sữa/Phô mai', 'Đạm động vật'],
+                'Dinh dưỡng'        => ['~200 kcal/100g', 'Đạm ~10%', 'Chất xơ ~5%'],
+                'Hướng dẫn sử dụng' => 'Dùng trực tiếp hoặc hâm 2–3 phút',
+                'Đối tượng'         => 'Trẻ từ 6 tháng tuổi trở lên',
+                'Bảo quản'          => 'Ngăn mát hoặc nơi thoáng; dùng trong 24h sau mở',
+                'Chứng nhận'        => 'ISO 22000 / HACCP',
+                'Lưu ý'             => 'Tránh dùng nếu dị ứng sữa/đạm bò',
+            ],
+            'Sức khoẻ & Vitamin' => [
+                'Dung tích/Quy cách' => 'Chai 100ml / Hộp 30 viên',
+                'Hạn sử dụng'       => '24 - 36 tháng',
+                'Thành phần chính'  => ['Vitamin A,C,D,E', 'Kẽm', 'DHA', 'Probiotic'],
+                'Công dụng'         => ['Tăng đề kháng', 'Hỗ trợ tiêu hoá', 'Phát triển trí não'],
+                'Đối tượng sử dụng' => 'Trẻ >1 tuổi / người lớn / PN mang thai',
+                'Cách dùng'         => 'Uống sau ăn, 1-2 lần/ngày',
+                'Bảo quản'          => 'Khô ráo, tránh nắng, <30°C',
+                'Chứng nhận'        => 'GMP-WHO / FDA',
+                'Chống chỉ định'    => 'Mẫn cảm với thành phần sản phẩm',
+            ],
+            'Chăm sóc - Mỹ phẩm' => [
+                'Dung tích'         => '100ml - 500ml',
+                'Công dụng'         => ['Dưỡng ẩm', 'Giảm hăm', 'Làm dịu kích ứng', 'Làm sạch nhẹ'],
+                'Thành phần'        => ['Cúc La Mã', 'Vitamin E', 'Panthenol', 'Glycerin'],
+                'Kết cấu'           => 'Kem mềm/gel nhẹ, thấm nhanh',
+                'Mùi hương'         => 'Không hương liệu / dịu nhẹ',
+                'Cách dùng'         => 'Thoa sau tắm hoặc khi da khô ráp',
+                'Bảo quản'          => 'Tránh nắng trực tiếp, đậy kín sau dùng',
+                'Hạn sử dụng'       => '36 tháng',
+                'Xuất xứ'           => 'Pháp / Đức / Nhật',
+                'Chứng nhận'        => 'Dermatologically Tested',
+            ],
+            'Đồ dùng - Gia dụng' => [
+                'Chất liệu'         => ['Nhựa PP', 'Silicon y tế', 'Thép không gỉ', 'Vải polyester'],
+                'Dung tích/Công suất' => '150–250ml (bình) / 300–600W (máy)',
+                'Tính năng'         => ['BPA Free', 'Chống sặc', 'Tiệt trùng hơi nước', 'Khoá an toàn'],
+                'Độ tuổi phù hợp'   => '0 - 3 tuổi',
+                'Kích thước'        => 'Tuỳ sản phẩm (khăn 70x100 cm / xe đẩy gập gọn)',
+                'Bảo hành'          => '6 - 12 tháng',
+                'Tiêu chuẩn'        => ['CE', 'ISO 9001'],
+                'Xuất xứ'           => 'Nhật / Hàn / VN',
+                'Lưu ý'             => 'Tiệt trùng định kỳ, kiểm tra tình trạng trước khi dùng',
+            ],
+            'Thời trang và phụ kiện' => [
+                'Size'              => 'NB – 6Y',
+                'Chất liệu'         => ['Cotton 100%', 'Modal', 'Sợi tre'],
+                'Màu sắc'           => ['Pastel', 'Trung tính', 'In hình'],
+                'Kiểu dáng'         => ['Bodysuit', 'Đầm xòe', 'Áo cộc tay'],
+                'Đặc điểm'          => ['Thoáng khí', 'Thấm hút', 'Co giãn 4 chiều'],
+                'Hướng dẫn giặt'    => 'Giặt nhẹ, không tẩy mạnh, phơi râm',
+                'Lưu ý'             => 'Ủi nhiệt độ thấp',
+                'Đối tượng'         => 'Trẻ sơ sinh đến 6 tuổi',
+                'Xuất xứ'           => 'VN / CN / Hàn',
+            ],
+            'Đồ chơi, học tập' => [
+                'Độ tuổi'           => '6 tháng – 7 tuổi',
+                'Chất liệu'         => ['Nhựa ABS an toàn', 'Gỗ sơn gốc nước'],
+                'Tính năng'         => ['Phát triển vận động', 'Rèn logic', 'Tương tác nhóm'],
+                'Tiêu chuẩn'        => ['EN71', 'ASTM'],
+                'Màu sắc'           => 'Đa dạng, bắt mắt',
+                'Kích thước'        => '30x20x10 cm – 80x50x40 cm',
+                'Lợi ích'           => ['Kích thích sáng tạo', 'Tăng tập trung', 'An toàn cho bé'],
+                'Xuất xứ'           => 'VN / CN / Ba Lan',
+                'Lưu ý'             => 'Tránh chi tiết nhỏ với trẻ < 3 tuổi nếu không giám sát',
+            ],
         ];
+
+        $spec = $map[$danhMuc] ?? ['Thông số' => 'Đang cập nhật'];
+
+
+        // Thực phẩm - Đồ uống (Xúc xích / Phô mai / Váng sữa / Mì)
+        if ($has('Xúc Xích') || $has('Phô Mai') || $has('Váng sữa') || $has('Mì')) {
+            $spec = array_merge($spec, [
+                'Khối lượng'        => '50g - 200g',
+                'Hạn sử dụng'       => '6 - 12 tháng',
+                'Thành phần'        => ['Đạm động vật', 'Sữa', 'Ngũ cốc', 'Khoáng chất'],
+                'Dinh dưỡng'        => ['Năng lượng ~200 kcal/100g', 'Đạm ~10%', 'Chất xơ ~5%'],
+                'Đối tượng sử dụng' => 'Trẻ từ 1 tuổi trở lên',
+                'Hướng dẫn sử dụng' => 'Dùng trực tiếp hoặc chế biến nhanh trong 3-5 phút',
+                'Bảo quản'          => 'Ngăn mát tủ lạnh hoặc nơi thoáng mát',
+                'Chứng nhận'        => 'ISO 22000, HACCP',
+                'Lưu ý'             => 'Dùng ngay sau khi mở bao bì.',
+            ]);
+        }
+
+        // Sức khoẻ & Vitamin: Ferrolip
+        if ($has('Ferrolip')) {
+            $spec = array_merge($spec, [
+                'Dung tích'          => '20 ống x 5ml',
+                'Thành phần chính'   => ['Sắt (Fe)', 'Vitamin C', 'Acid folic'],
+                'Công dụng'          => 'Bổ sung sắt cho người thiếu máu, mệt mỏi',
+                'Đối tượng sử dụng'  => 'Trẻ em và phụ nữ mang thai',
+                'Cách dùng'          => '1 ống/ngày hoặc theo chỉ định bác sĩ',
+                'Bảo quản'           => 'Nơi khô thoáng, tránh ánh nắng',
+                'Lưu ý'              => 'Dùng theo chỉ dẫn bác sĩ',
+            ]);
+        }
+
+        // Chăm sóc - Mỹ phẩm: Phấn
+        if ($has('Phấn')) {
+            $spec = array_merge($spec, [
+                'Khối lượng'         => '20g - 30g',
+                'Công dụng'          => ['Giảm kích ứng', 'Giữ da khô thoáng'],
+                'Thành phần'         => ['Talc', 'Chiết xuất thảo dược'],
+                'Cách dùng'          => 'Thoa lớp mỏng lên vùng cần khô thoáng',
+                'Bảo quản'           => 'Đậy nắp kín sau khi dùng',
+                'Lưu ý'              => 'Tránh hít phải bụi phấn',
+            ]);
+        }
+
+        // Đồ dùng - Gia dụng: Ty ngậm / Khăn tắm / Xe đẩy
+        if ($has('Ty ngậm')) {
+            $spec = array_merge($spec, [
+                'Chất liệu (đầu ty)' => 'Silicon an toàn',
+                'Độ tuổi'            => '0 - 6 tháng',
+                'Kích thước ty'      => 'Phù hợp miệng trẻ sơ sinh',
+                'Hình dạng'          => 'Mô phỏng ti mẹ',
+                'Màu sắc'            => 'Hồng / Xanh dương',
+                'Xuất xứ'            => 'Hàn Quốc / Việt Nam / Mỹ',
+                'Bảo hành'           => '3 tháng',
+                'Tính năng'          => ['Chống sặc', 'Thiết kế ôm miệng'],
+                'Vệ sinh'            => 'Tiệt trùng định kỳ bằng nước sôi',
+            ]);
+        }
+        if ($has('Khăn tắm')) {
+            $spec = array_merge($spec, [
+                'Kích thước khăn'    => '70x100 cm',
+                'Chất liệu khăn'     => 'Cotton mềm mại',
+                'Trọng lượng khăn'   => '≈300g',
+                'Đối tượng sử dụng'  => 'Trẻ sơ sinh và trẻ nhỏ',
+                'Tính năng'          => ['Thấm hút tốt', 'Thân thiện với da bé'],
+                'Hướng dẫn giặt'     => 'Giặt tay hoặc máy ở nhiệt độ thấp',
+                'Lưu ý'              => 'Giặt tay để giữ độ bền',
+            ]);
+        }
+        if ($has('Xe đẩy')) {
+            $spec = array_merge($spec, [
+                'Loại xe'            => 'Xe đẩy 2 chiều',
+                'Tải trọng'          => '15kg - 20kg',
+                'Khung vải'          => 'Hợp kim nhôm, vải polyester',
+                'Độ tuổi phù hợp'    => '6 tháng - 4 tuổi',
+                'Trọng lượng xe'     => '≈3kg',
+                'Kích thước gập'     => '30 x 50 cm',
+                'Kích thước mở'      => '80 x 100 cm',
+                'Xuất xứ'            => 'Hàn Quốc / Đức',
+                'Tính năng'          => ['Gập gọn', 'Mái che', 'Khoá an toàn'],
+                'Bảo hành'           => '12 tháng',
+                'Lưu ý'              => 'Luôn giám sát trẻ khi sử dụng',
+            ]);
+        }
+
+        // Thời trang & phụ kiện: cột tóc / Đầm / Bodysuit
+        if ($has('cột tóc')) {
+            $spec = array_merge($spec, [
+                'Chất liệu'          => 'Thun co giãn',
+                'Màu sắc'            => 'Đa dạng',
+                'Kích thước'         => 'Phù hợp nhiều lứa tuổi',
+                'Đối tượng sử dụng'  => 'Bé gái từ 1 tuổi trở lên',
+                'Số lượng'           => '1 bộ nhiều chiếc',
+                'Lưu ý'              => 'Giặt tay để giữ độ bền',
+            ]);
+        }
+        if ($has('Đầm')) {
+            $spec = array_merge($spec, [
+                'Size'               => 'S - XL',
+                'Chất liệu'          => 'Cotton, vải thô',
+                'Màu sắc'            => 'Hồng, Vàng, Beige',
+                'Họa tiết'           => 'Chấm bi, hoa nhí',
+                'Kiểu dáng'          => 'Xòe, dễ vận động',
+            ]);
+        }
+        if ($has('Bodysuit')) {
+            $spec = array_merge($spec, [
+                'Size'               => '0 - 12 tháng',
+                'Chất liệu'          => 'Cotton / Modal / Lưới',
+                'Màu sắc'            => 'Đỏ, Hồng, Xanh',
+                'Họa tiết'           => 'In hình thú ngộ nghĩnh',
+                'Kiểu dáng'          => 'Ôm sát, dễ thương',
+                'Tính năng'          => ['Thoáng mát', 'Dễ thay tã'],
+                'Khuy cài'           => 'Nút bấm đáy',
+            ]);
+        }
+
+        // Đồ chơi, học tập: Vali / Lưới
+        if ($has('Vali')) {
+            $spec = array_merge($spec, [
+                'Chất liệu'          => 'Nhựa ABS an toàn',
+                'Trọng lượng'        => '≈3kg',
+                'Tính năng'          => ['Kéo đi dễ dàng', 'Thiết kế hình thú vui nhộn'],
+                'Bảo hành'           => '12 tháng',
+                'Xuất xứ'            => 'Hàn Quốc / Đức',
+                'Kích thước'         => 'Phù hợp trẻ 2–6 tuổi',
+            ]);
+        }
+        if ($has('Lưới')) {
+            $spec = array_merge($spec, [
+                'Chất liệu'          => 'Nhựa bền',
+                'Tính năng'          => ['Trò chơi vận động ngoài trời'],
+                'Kích thước'         => 'Dài 1.5m x Cao 1m',
+                'Độ tuổi'            => '3 - 7 tuổi',
+            ]);
+        }
+
+        return $spec;
     }
+
 
 
     protected function updateQuantities(): void

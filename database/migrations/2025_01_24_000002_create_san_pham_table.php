@@ -24,6 +24,8 @@ return new class extends Migration
             //$table->string('kho_id', 36)->nullable();
             $table->string('hinhAnh')->nullable();
             $table->json('thongSoKyThuat')->nullable();
+            $table->boolean('is_noi_bat')->default(false)->comment('0 = thường, 1 = nổi bật');
+            $table->decimal('flash_sale', 5, 2)->default(0.00);
             $table->datetime('ngayTao');
             $table->datetime('ngayCapNhat')->nullable();
         });

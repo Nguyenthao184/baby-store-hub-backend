@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\SanPham;
 use App\Repositories\GioHangRepository;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 
 class GioHangService
@@ -13,21 +14,30 @@ class GioHangService
 
     private function mapSanPham(SanPham $sp, int $soLuong): array
     {
-        $vatPercent = (float)($sp->VAT ?? 0);
-        $giaVnd     = (float)($sp->giaBan ?? 0);
-        $giaSauVAT  = round($giaVnd * (1 + $vatPercent / 100), 2);
+        $vat      = (float) ($sp->VAT ?? 0);
+        $giaGoc   = (float) ($sp->giaBan ?? 0);
+        $giaKM    = $this->giaHienHanh($sp);                 // đã xét is_noi_bat + giamGiaNoiBat
+        $giaSauVAT = round($giaKM * (1 + $vat / 100), 2);
+
         return [
-            'id'        => $sp->id,
-            'ten'       => $sp->tenSanPham,
-            'hinhAnh'   => $sp->hinhAnh,
-            'moTa'      => $sp->moTa,
-            'gia'       => round($giaVnd, 2),
-            'VAT'       => round($vatPercent, 2),
-            'giaSauVAT' => $giaSauVAT,
-            'soLuong'   => $soLuong,
-            'tonKho'    => (int)($sp->soLuongTon ?? 0),
-            'noiBat'    => (bool)($sp->is_noi_bat ?? false),
-            'giamGia'   => null,
+            'id'            => $sp->id,
+            'ten'           => $sp->tenSanPham,
+            'hinhAnh'       => $sp->hinhAnh,
+            'moTa'          => $sp->moTa,
+
+            // gửi cả giá gốc & giá đã KM để FE hiển thị
+            'gia_goc'       => round($giaGoc, 2),
+            'gia'           => round($giaKM, 2),
+            'VAT'           => round($vat, 2),
+            'giaSauVAT'     => $giaSauVAT,
+
+            'soLuong'       => $soLuong,
+            'tonKho'        => (int)($sp->soLuongTon ?? 0),
+
+            'noiBat'        => (bool)($sp->is_noi_bat ?? false),
+            'flash_sale'    => round((float)($sp->flash_sale ?? 0), 2), // 0.05 = 5%
+            // 'giamGia' item-level khác (nếu bạn có), hiện để null:
+            'giamGia'       => null,
         ];
     }
 
@@ -41,33 +51,44 @@ class GioHangService
         }
     }
 
-    private function tinhGiaCuoiVND(float $giaBanVnd, float $vat, ?float $giamGia, bool $noiBat): float
+    private function giaHienHanh(SanPham $sp): float
     {
-        // cộng VAT
-        $giaCoVAT = $giaBanVnd * (1 + $vat / 100);
+        $gia = (float) ($sp->giaBan ?? 0);
+        $rate = (float) ($sp->giamGiaNoiBat ?? 0);
 
-        // giảm giá
+        // CHỈ giảm giá nếu KHÔNG nổi bật
+        if (!($sp->is_noi_bat ?? false) && $rate > 0) {
+            $gia = $gia * (1 - $rate);
+        }
+        return round($gia, 2);
+    }
+
+
+    private function tinhGiaCuoi(float $giaHienHanh, float $vat, ?float $giamGia, bool $noiBat): float
+    {
+        // $giaHienHanh đã là giá sau khi áp giảm nổi bật (nếu có)
+        $giaCoVAT = $giaHienHanh * (1 + $vat / 100);
+
+        // Nếu còn chính sách giảm riêng per-item (không phải nổi bật) thì áp tiếp:
         if (!$noiBat && $giamGia) {
+            // $giamGia cũng là tỷ lệ (vd 0.10 = 10%)
             $giaCoVAT *= (1 - $giamGia);
         }
-
-        // giữ 2 chữ số thập phân
         return round($giaCoVAT, 2);
     }
 
     public function layGio(int|string $nguoiDungId): array
     {
         $ds = array_values($this->repo->tatCa($nguoiDungId));
+        $tamTinh = 0.0;
 
-        $tamTinh = 0;
         foreach ($ds as &$sp) {
-            $giaCuoi = $this->tinhGiaCuoiVND(
-                (float)$sp['gia'],
+            $giaCuoi = $this->tinhGiaCuoi(
+                (float)$sp['gia'],                  // đã là giá sau KM nổi bật
                 (float)($sp['VAT'] ?? 0),
                 $sp['giamGia'] ?? null,
                 (bool)($sp['noiBat'] ?? false)
             );
-
             $sp['gia_cuoi']   = $giaCuoi;
             $sp['thanh_tien'] = round($giaCuoi * (int)$sp['soLuong'], 2);
             $tamTinh         += $sp['thanh_tien'];
@@ -76,9 +97,11 @@ class GioHangService
 
         return [
             'san_pham' => $ds,
-            'tam_tinh' => round($tamTinh, 2)   // tổng cũng 2 số thập phân
+            'tam_tinh' => round($tamTinh, 2),
         ];
+       Log::info('GIO HANG DEBUG', ['userId' => $nguoiDungId, 'gio' => $result]);
     }
+
 
     public function them(int|string $nguoiDungId, string $sanPhamId, int $soLuong = 1): array
 

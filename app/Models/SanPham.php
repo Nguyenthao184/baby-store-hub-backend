@@ -27,6 +27,7 @@ class SanPham extends Model
         'ngayTao',
         'ngayCapNhat',
         'is_noi_bat',
+        'flash_sale',
     ];
 
     protected $casts = [

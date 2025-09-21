@@ -229,7 +229,7 @@ class CheckoutController extends Controller
     $userId = $request->user()->id;
 
     // 1) Map KhachHang theo user
-    $kh = \App\Models\KhachHang::where('taiKhoan_id', $userId)->first(); // cột này có trong migration【:contentReference[oaicite:1]{index=1}】
+    $kh = KhachHang::where('taiKhoan_id', $userId)->first(); // cột này có trong migration【:contentReference[oaicite:1]{index=1}】
     $khachHangId = $kh?->id; // có thì dùng, chưa có thì để null (nếu schema cho phép)
 
     // 2) Lấy giỏ của chính user
@@ -252,7 +252,7 @@ class CheckoutController extends Controller
 
         $tongThanhToan = round($tamTinh - $giamVoucher - $giamDiem + $phiVC + $phiCOD, 2);
 
-        $donhang = \App\Models\DonHang::create([
+        $donhang = DonHang::create([
             'id'                      => (string) Str::uuid(),
             'ma_don_hang'             => $this->genMaDonHang(),
             'khach_hang_id'           => $khachHangId,      // <-- dùng ID đã map (đừng comment)
@@ -272,7 +272,7 @@ class CheckoutController extends Controller
         ]);
 
         foreach ($items as $it) {
-            \App\Models\ChiTietDonHang::create([
+            ChiTietDonHang::create([
                 'id'           => (string) \Illuminate\Support\Str::uuid(),
                 'don_hang_id'  => $donhang->id,
                 'san_pham_id'  => $it['id'],
@@ -285,7 +285,7 @@ class CheckoutController extends Controller
             ]);
         }
 
-        \App\Models\ThanhToan::create([
+        ThanhToan::create([
             'don_hang_id'   => $donhang->id,
             'kenh'          => $data['phuong_thuc_thanh_toan'],
             'so_tien'       => $donhang->tong_thanh_toan,
@@ -294,12 +294,16 @@ class CheckoutController extends Controller
             'ma_tham_chieu' => $donhang->id,
         ]);
 
+        // ... sau khi create DonHang + ThanhToan (kenh = $data['phuong_thuc_thanh_toan'])
         $paymentUrl = null;
         if ($donhang->phuong_thuc_thanh_toan === 'vnpay') {
             $paymentUrl = $this->buildVnpayUrl($donhang);
+        } elseif ($donhang->phuong_thuc_thanh_toan === 'momo') {
+            $paymentUrl = $this->buildMomoUrl($donhang); // <--- thêm dòng này
         } elseif ($donhang->phuong_thuc_thanh_toan === 'cod') {
             $this->gioHang->xoaHet($userId);
         }
+
 
         return response()->json([
             'message'      => 'Tạo đơn hàng thành công, chờ thanh toán',
@@ -441,5 +445,120 @@ class CheckoutController extends Controller
             ->count() + 1;
 
         return 'DH-' . $year . '-' . $ymd . '-' . str_pad((string)$seq, 6, '0', STR_PAD_LEFT);
+    }
+    /* ================= MOMO ================= */
+
+    private function buildMomoUrl(DonHang $donhang): ?string
+    {
+        $endpoint    = 'https://test-payment.momo.vn/v2/gateway/api/create';
+        $partnerCode = config('services.momo.partner_code');
+        $accessKey   = config('services.momo.access_key');
+        $secretKey   = config('services.momo.secret_key');
+        $redirectUrl = config('services.momo.redirect_url', route('momo.return'));
+        $ipnUrl      = config('services.momo.ipn_url', route('momo.ipn'));
+
+        $amount      = (int) $donhang->tong_thanh_toan;
+        $orderId     = (string) $donhang->id;
+        $requestId   = (string) now()->timestamp;
+        $orderInfo   = 'Thanh toán đơn hàng ' . $donhang->ma_don_hang;
+        $requestType = 'payWithATM';
+        $extraData   = '';
+
+        $raw = "accessKey={$accessKey}"
+             . "&amount={$amount}"
+             . "&extraData={$extraData}"
+             . "&ipnUrl={$ipnUrl}"
+             . "&orderId={$orderId}"
+             . "&orderInfo={$orderInfo}"
+             . "&partnerCode={$partnerCode}"
+             . "&redirectUrl={$redirectUrl}"
+             . "&requestId={$requestId}"
+             . "&requestType={$requestType}";
+
+        $signature = hash_hmac('sha256', $raw, $secretKey);
+
+        $payload = [
+            'partnerCode' => $partnerCode,
+            'partnerName' => 'MoMoTest',
+            'storeId'     => 'MomoStore',
+            'requestId'   => $requestId,
+            'amount'      => $amount,
+            'orderId'     => $orderId,
+            'orderInfo'   => $orderInfo,
+            'redirectUrl' => $redirectUrl,
+            'ipnUrl'      => $ipnUrl,
+            'lang'        => 'vi',
+            'extraData'   => $extraData,
+            'requestType' => $requestType,
+            'signature'   => $signature,
+        ];
+
+        $ch = curl_init($endpoint);
+        curl_setopt_array($ch, [
+            CURLOPT_POST           => true,
+            CURLOPT_HTTPHEADER     => ['Content-Type: application/json'],
+            CURLOPT_POSTFIELDS     => json_encode($payload),
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 35,
+            CURLOPT_CONNECTTIMEOUT => 15,
+        ]);
+        $res  = curl_exec($ch);
+        curl_close($ch);
+
+        $json = json_decode($res, true);
+        if (!is_array($json) || empty($json['payUrl'])) {
+            Log::error('MoMo create fail', ['response' => $res]);
+            return null;
+        }
+        return $json['payUrl'];
+    }
+
+    public function momoReturn(Request $request)
+    {
+        $p = $request->all();
+        Log::info('MoMo RETURN', $p);
+
+        $orderId    = $p['orderId'] ?? null;
+        $resultCode = (int)($p['resultCode'] ?? -1);
+        $transId    = $p['transId'] ?? null;
+        $ok = ((int)($p['resultCode'] ?? -1)) === 0;
+
+        if ($orderId) {
+            ThanhToan::where('ma_tham_chieu', $orderId)
+                ->whereRaw('LOWER(kenh) = ?', ['momo'])
+                ->update([
+                    'trang_thai'   => $resultCode === 0 ? 'DA_THANH_TOAN' : 'THAT_BAI',
+                    'ma_giao_dich' => $transId,
+                    'ma_ket_qua'   => $resultCode,
+                    'raw_return'   => $p,
+                ]);
+        }
+
+        $fe = config('app.frontend_url'); // http://localhost:8000
+    return redirect()->away($fe . '/checkout/result?orderId=' . urlencode($orderId) . '&gw=momo');
+
+    }
+
+    public function momoIpn(Request $request)
+    {
+        $p = $request->all();
+        Log::info('MoMo IPN', $p);
+
+        $orderId    = $p['orderId'] ?? null;
+        $resultCode = (int)($p['resultCode'] ?? -1);
+        $transId    = $p['transId'] ?? null;
+
+        if ($orderId) {
+            ThanhToan::where('ma_tham_chieu', $orderId)
+                ->whereRaw('LOWER(kenh) = ?', ['momo'])
+                ->update([
+                    'trang_thai'   => $resultCode === 0 ? 'DA_THANH_TOAN' : 'THAT_BAI',
+                    'ma_giao_dich' => $transId,
+                    'ma_ket_qua'   => $resultCode,
+                    'raw_ipn'      => $p,
+                ]);
+        }
+
+        return response()->json(['resultCode' => 0, 'message' => 'Confirm Success']);
     }
 }

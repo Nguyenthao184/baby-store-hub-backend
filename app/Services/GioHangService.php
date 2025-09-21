@@ -12,34 +12,6 @@ class GioHangService
 {
     public function __construct(private GioHangRepository $repo) {}
 
-    private function mapSanPham(SanPham $sp, int $soLuong): array
-    {
-        $vat      = (float) ($sp->VAT ?? 0);
-        $giaGoc   = (float) ($sp->giaBan ?? 0);
-        $giaKM    = $this->giaHienHanh($sp);                 // đã xét is_noi_bat + giamGiaNoiBat
-        $giaSauVAT = round($giaKM * (1 + $vat / 100), 2);
-
-        return [
-            'id'            => $sp->id,
-            'ten'           => $sp->tenSanPham,
-            'hinhAnh'       => $sp->hinhAnh,
-            'moTa'          => $sp->moTa,
-
-            // gửi cả giá gốc & giá đã KM để FE hiển thị
-            'gia_goc'       => round($giaGoc, 2),
-            'gia'           => round($giaKM, 2),
-            'VAT'           => round($vat, 2),
-            'giaSauVAT'     => $giaSauVAT,
-
-            'soLuong'       => $soLuong,
-            'tonKho'        => (int)($sp->soLuongTon ?? 0),
-
-            'noiBat'        => (bool)($sp->is_noi_bat ?? false),
-            'flash_sale'    => round((float)($sp->flash_sale ?? 0), 2), // 0.05 = 5%
-            // 'giamGia' item-level khác (nếu bạn có), hiện để null:
-            'giamGia'       => null,
-        ];
-    }
 
     private function kiemTraTon(SanPham $sp, int $soLuong): void
     {
@@ -51,30 +23,51 @@ class GioHangService
         }
     }
 
+    private function mapSanPham(SanPham $sp, int $soLuong): array
+    {
+        $vat         = (float) ($sp->VAT ?? 0);
+        $giaGoc      = (float) ($sp->giaBan ?? 0);
+        $giaSauKM    = $this->giaHienHanh($sp);          // đã áp flash_sale nếu KHÔNG nổi bật
+        $giaSauVAT   = $this->tinhGiaCoVAT($giaSauKM, $vat);
+
+        return [
+            'id'         => $sp->id,
+            'ten'        => $sp->tenSanPham,
+            'hinhAnh'    => $sp->hinhAnh,
+            'moTa'       => $sp->moTa,
+
+            'gia_goc'    => round($giaGoc, 2),
+            'gia'        => round($giaSauKM, 2),          // giá sau KM (chưa VAT)
+            'VAT'        => round($vat, 2),
+            'giaSauVAT'  => $giaSauVAT,                   // 1 sp sau VAT
+
+            'soLuong'    => $soLuong,
+            'tonKho'     => (int)($sp->soLuongTon ?? 0),
+
+            'noiBat'     => (bool)($sp->is_noi_bat ?? false),
+            'flash_sale' => round((float)($sp->flash_sale ?? 0), 2),
+
+            // KHÔNG dùng giamGia per-item ở đây để tránh áp 2 lần
+            'giamGia'    => null,
+        ];
+    }
+
     private function giaHienHanh(SanPham $sp): float
     {
         $gia = (float) ($sp->giaBan ?? 0);
-        $rate = (float) ($sp->giamGiaNoiBat ?? 0);
+        $noiBat = (bool) ($sp->is_noi_bat ?? false);
+        $saleRate = (float) ($sp->flash_sale ?? 0); // 0..1
 
-        // CHỈ giảm giá nếu KHÔNG nổi bật
-        if (!($sp->is_noi_bat ?? false) && $rate > 0) {
-            $gia = $gia * (1 - $rate);
+        // Áp flash_sale CHỈ KHI KHÔNG nổi bật
+        if (!$noiBat && $saleRate > 0 && $saleRate <= 1) {
+            $gia *= (1 - $saleRate);
         }
         return round($gia, 2);
     }
 
-
-    private function tinhGiaCuoi(float $giaHienHanh, float $vat, ?float $giamGia, bool $noiBat): float
+    private function tinhGiaCoVAT(float $giaSauKM, float $vat): float
     {
-        // $giaHienHanh đã là giá sau khi áp giảm nổi bật (nếu có)
-        $giaCoVAT = $giaHienHanh * (1 + $vat / 100);
-
-        // Nếu còn chính sách giảm riêng per-item (không phải nổi bật) thì áp tiếp:
-        if (!$noiBat && $giamGia) {
-            // $giamGia cũng là tỷ lệ (vd 0.10 = 10%)
-            $giaCoVAT *= (1 - $giamGia);
-        }
-        return round($giaCoVAT, 2);
+        return round($giaSauKM * (1 + $vat / 100), 2);
     }
 
     public function layGio(int|string $nguoiDungId): array
@@ -83,26 +76,24 @@ class GioHangService
         $tamTinh = 0.0;
 
         foreach ($ds as &$sp) {
-            $giaCuoi = $this->tinhGiaCuoi(
-                (float)$sp['gia'],                  // đã là giá sau KM nổi bật
-                (float)($sp['VAT'] ?? 0),
-                $sp['giamGia'] ?? null,
-                (bool)($sp['noiBat'] ?? false)
-            );
-            $sp['gia_cuoi']   = $giaCuoi;
-            $sp['thanh_tien'] = round($giaCuoi * (int)$sp['soLuong'], 2);
+            // $sp['gia'] lúc này đã là giá SAU KM (chưa VAT)
+            $gia1spCoVAT = $this->tinhGiaCoVAT((float)$sp['gia'], (float)($sp['VAT'] ?? 0));
+            $sp['gia_cuoi']   = $gia1spCoVAT;                          // 1 sp sau VAT
+            $sp['thanh_tien'] = round($gia1spCoVAT * (int)$sp['soLuong'], 2);
             $tamTinh         += $sp['thanh_tien'];
         }
         unset($sp);
 
-        return [
+        $result = [
             'san_pham' => $ds,
             'tam_tinh' => round($tamTinh, 2),
         ];
-       Log::info('GIO HANG DEBUG', ['userId' => $nguoiDungId, 'gio' => $result]);
+        // Log::info('GIO HANG DEBUG', ['userId' => $nguoiDungId, 'gio' => $result]); // nếu cần
+        return $result;
     }
 
 
+   
     public function them(int|string $nguoiDungId, string $sanPhamId, int $soLuong = 1): array
 
     {

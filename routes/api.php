@@ -13,6 +13,7 @@ use App\Http\Controllers\PhieuKiemKhoController;
 use App\Http\Controllers\PhieuNhapKhoController;
 use App\Http\Controllers\KhachHangProfileController;
 use App\Http\Controllers\CheckoutController;
+use App\Http\Controllers\PaymentController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Cache;
@@ -124,10 +125,15 @@ Route::prefix('phieu-nhap-kho')->group(function () {
     Route::delete('/gio-hang/xoa-het', [GioHangController::class, 'xoaHet']);
 
     Route::post('/gio-hang/tinh-tong', [GioHangController::class, 'tinhTong']);
-Route::post('/checkout/dat-hang', [CheckoutController::class, 'datHangOnline']);
-
+    Route::post('/checkout/dat-hang', [CheckoutController::class, 'datHangOnline']);
+    
+    Route::get('/thanh-toan/{donhangid}/trang-thai', [PaymentController::class, 'status']);
 
     
 });
 
-Route::get('/vnpay/return', [CheckoutController::class, 'vnpayReturn']); // FE redirect
+Route::get('/vnpay/return', [CheckoutController::class, 'vnpayReturn']); 
+
+// Route::post('/momo_payment', [CheckoutController::class, 'momoPayment']);
+Route::match(['GET','POST'], '/momo/return', [CheckoutController::class, 'momoReturn'])->name('momo.return'); // public
+Route::match(['GET','POST'], '/momo/ipn',    [CheckoutController::class, 'momoIpn'])->name('momo.ipn');       // public

@@ -129,12 +129,10 @@ Route::middleware(['auth:sanctum','authRole:KhachHang'])->group(function () {
     Route::delete('/gio-hang/xoa-het', [GioHangController::class, 'xoaHet']);
 
     Route::post('/gio-hang/tinh-tong', [GioHangController::class, 'tinhTong']);
-    Route::post('/checkout/dat-hang', [CheckoutController::class, 'datHangOnline']);
+    Route::post('/checkout/dat-hang', [CheckoutController::class, 'datHang']);
     Route::get('/thanh-toan/{donhangid}/trang-thai', [PaymentController::class, 'status']);
-        
-    Route::prefix('checkout')->group(function () {
-        Route::post('/cod', [CheckoutController::class, 'placeCodOrder']); // tạo đơn COD
-    });           
+    Route::post('/checkout/mua-ngay', [CheckoutController::class, 'muaNgay']);
+                 
 
     // Đơn mua (của khách)
     Route::post('/don-mua/{id}/cancel', [DonMuaController::class, 'cancelByCustomer']); // Khách hàng hủy đơn hàng

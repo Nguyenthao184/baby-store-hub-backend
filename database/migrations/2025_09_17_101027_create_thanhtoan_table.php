@@ -21,8 +21,8 @@ return new class extends Migration
             $table->decimal('so_tien', 15, 2);                  // số tiền giao dịch
             $table->string('don_vi_tien', 5)->default('VND');
 
-            // pending|paid|failed|canceled|refunded
-            $table->string('trang_thai', 20)->default('pending')->index();
+            // CHO_XU_LY|DA_THANH_TOAN|THAT_BAI|HUY|HOAN_TIEN
+            $table->string('trang_thai', 20)->default('CHO_XU_LY')->index();
             $table->string('ma_ket_qua', 50)->nullable();
             $table->string('thong_diep', 255)->nullable();
 

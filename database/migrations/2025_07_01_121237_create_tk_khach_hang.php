@@ -16,7 +16,7 @@ return new class extends Migration
             $table->string('hoTen', 255);
             $table->string('sdt', 10)->nullable();
             $table->string('email', 255)->nullable();
-            $table->json('diaChi')->nullable(); // Chuyển sang kiểu JSON
+            $table->string('diaChi', 255)->nullable();
             $table->date('ngaySinh')->nullable();
             $table->string('avatar', 255)->nullable();
             $table->unsignedBigInteger('taiKhoan_id')->nullable();

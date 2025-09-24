@@ -10,7 +10,7 @@ class HoaDon extends Model
     use HasFactory;
 
     protected $table = 'hoadon';
-
+    protected $guarded = [];
     protected $keyType = 'string';
     public $incrementing = false;
 
@@ -44,5 +44,17 @@ class HoaDon extends Model
     public function donHang()
     {
         return $this->belongsTo(DonHang::class, 'don_hang_id');
+    }
+
+    public static function genSoHoaDon(): string
+    {
+        $today = now()->toDateString(); // YYYY-MM-DD
+
+        // Đếm theo ngày với lock, gọi trong transaction để chắc chắn
+        $seq = self::whereDate('ngay_xuat', $today)
+            ->lockForUpdate()
+            ->count() + 1;
+
+        return 'HD-' . now()->format('Y') . '-' . now()->format('Ymd') . '-' . str_pad((string)$seq, 6, '0', STR_PAD_LEFT);
     }
 }

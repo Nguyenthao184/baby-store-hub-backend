@@ -9,7 +9,9 @@ use App\Models\DonHang;
 use App\Models\HoaDon;
 use App\Models\ChiTietDonHang;
 use App\Models\SanPham;
+use App\Models\KhachHang;
 use App\Http\Requests\DonHang\ThanhToanDonHangRequest;
+use Illuminate\Support\Facades\Log; 
 
 class DonHangController extends Controller
 {
@@ -167,5 +169,55 @@ class DonHangController extends Controller
             DB::rollBack();
             return response()->json(['error' => $e->getMessage()], 500);
         }
+    }
+
+    public function moveToShipping(Request $request, string $id)
+    {
+        $request->validate([
+            'ghi_chu' => ['nullable','string','max:500'],
+        ]);
+
+        return DB::transaction(function () use ($id, $request) {
+            // Khoá bản ghi để tránh race
+            $don = DonHang::lockForUpdate()->find($id);
+            if (!$don) {
+                return response()->json(['message' => 'Không tìm thấy đơn hàng'], 404);
+            }
+
+            if ($don->trang_thai !== 'CHO_XU_LY') {
+                return response()->json([
+                    'message' => 'Chỉ chuyển trạng thái từ CHO_XU_LY sang DANG_GIAO_HANG',
+                    'current' => $don->trang_thai,
+                ], 422);
+            }
+
+            // Khuyến nghị: phải có mã vận đơn trước khi giao (bạn có thể bỏ check này nếu không cần)
+            if (empty($don->ma_van_don)) {
+                return response()->json([
+                    'message' => 'Chưa có mã vận đơn. Vui lòng tạo vận đơn trước khi chuyển sang DANG_GIAO_HANG.',
+                ], 422);
+            }
+
+            $don->update([
+                'trang_thai'    => 'DANG_GIAO_HANG',
+                'ngay_cap_nhat' => now(),
+            ]);
+
+            Log::info('Admin chuyển trạng thái đơn sang DANG_GIAO_HANG', [
+                'don_hang_id' => $don->id,
+                'by'          => auth()->id(),
+                'ghi_chu'     => $request->input('ghi_chu'),
+            ]);
+
+            return response()->json([
+                'message' => 'Đã chuyển trạng thái đơn sang DANG_GIAO_HANG',
+                'don_hang' => [
+                    'id'           => $don->id,
+                    'ma_don_hang'  => $don->ma_don_hang,
+                    'trang_thai'   => $don->trang_thai,
+                    'ma_van_don'   => $don->ma_van_don,
+                ],
+            ]);
+        });
     }
 }

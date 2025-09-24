@@ -15,7 +15,6 @@ class HoaDonSeeder extends Seeder
     {
         // Lấy danh sách đơn hàng mới nhất
         $donHangs = DonHang::orderByDesc('ngay_tao')->take(10)->get();
-        $phuongThucs = ['cod', 'momo', 'vnpay']; // Các phương thức thanh toán
         $now = Carbon::now();
         $hoaDons = [];
         $startIndex = 1;
@@ -23,27 +22,21 @@ class HoaDonSeeder extends Seeder
         // Xóa dữ liệu cũ trong bảng hoadon
         DB::table('hoadon')->delete();
 
-        foreach ($donHangs as $i => $donHang) {
+        foreach ($donHangs as $donHang) {
             // Lấy chi tiết đơn hàng liên quan
             $chiTiets = ChiTietDonHang::where('don_hang_id', $donHang->id)->get();
 
             if ($chiTiets->isEmpty()) continue;
 
-            // Tính toán tổng tiền hàng và VAT
-            $tongTienHang = $chiTiets->sum(function ($chiTiet) {
-                return $chiTiet->thanh_tien;
-            });
-            $tongVAT = $chiTiets->sum(function ($chiTiet) {
-                return $chiTiet->gia * $chiTiet->so_luong * (floatval($chiTiet->vat ?? 0) / 100);
-            });
+            // Tính toán tổng tiền hàng và VAT từ chi tiết
+            $tongTienHang = $chiTiets->sum(fn($ct) => $ct->thanh_tien);
+            $tongVAT = $chiTiets->sum(fn($ct) => $ct->gia * $ct->so_luong * (floatval($ct->vat ?? 0) / 100));
 
-            // Lấy các giá trị từ đơn hàng
+            // Lấy trực tiếp từ đơn hàng để khớp
             $giamVoucher = $donHang->giam_voucher;
             $giamDiem = $donHang->giam_diem;
             $phiVanChuyen = $donHang->phi_van_chuyen;
-
-            // Tính tổng thanh toán
-            $tongThanhToan = $tongTienHang + $tongVAT - $giamVoucher - $giamDiem + $phiVanChuyen;
+            $tongThanhToan = $donHang->tong_thanh_toan;
 
             // Tạo mã hóa đơn
             $maHoaDon = 'HD-' . now()->year . '-' . str_pad($startIndex++, 6, '0', STR_PAD_LEFT);
@@ -59,7 +52,7 @@ class HoaDonSeeder extends Seeder
                 'giam_diem' => round($giamDiem, 2),
                 'phi_van_chuyen' => round($phiVanChuyen, 2),
                 'tong_thanh_toan' => round($tongThanhToan, 2),
-                'phuong_thuc_thanh_toan' => $phuongThucs[$i % 3],
+                'phuong_thuc_thanh_toan' => $donHang->phuong_thuc_thanh_toan, // khớp với đơn hàng
             ];
         }
 

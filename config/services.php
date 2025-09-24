@@ -48,4 +48,10 @@ return [
 
 
 
+    'ghn' => [
+        'base_url' => env('GHN_BASE_URL'),
+        'token'    => env('GHN_TOKEN'),
+        'shop_id'  => (int) env('GHN_SHOP_ID', 0),
+    ],
+
 ];

@@ -14,7 +14,7 @@ class DatHangRequest extends FormRequest
     public function rules(): array
     {
         return [
-         'khach_hang_id' => ['nullable','string','max:64'],
+            'khach_hang_id' => ['nullable','string','max:64'],
 
             'ten_nguoi_nhan' => 'required|string|max:150',
             'so_dien_thoai'  => 'required|string|max:20',
@@ -23,17 +23,14 @@ class DatHangRequest extends FormRequest
             'voucher_id'     => 'nullable|uuid',
             'phuong_thuc_thanh_toan' => 'required|in:vnpay,momo,cod',
 
-            // 'items' => 'required|array|min:1',
-            // 'items.*.san_pham_id'  => 'required|string|max:36',
-            // 'items.*.ten_san_pham' => 'required|string|max:255',
-            // 'items.*.gia'          => 'required|numeric|min:0',
-            // 'items.*.vat'          => 'nullable|numeric|min:0|max:100',
-            // 'items.*.giam_gia'     => 'nullable|numeric|min:0',
-            // 'items.*.so_luong'     => 'required|integer|min:1',
-
             'phi_van_chuyen' => 'nullable|numeric|min:0',
             'giam_voucher'   => 'nullable|numeric|min:0',
             'giam_diem'      => 'nullable|numeric|min:0',
+
+            'to_district_id' => 'required|integer',
+            'to_ward_code'   => 'required|string',
+            'items.*.weight' => 'nullable|integer|min:10', // gram, tùy bạn
+
         ];
     }
 

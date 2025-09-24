@@ -37,8 +37,8 @@ return new class extends Migration
             $table->string('ma_van_don', 60)->nullable();
 
             // Trạng thái quy trình
-            // draft|awaiting_payment|paid|confirming|packing|shipping|completed|canceled
-            $table->string('trang_thai', 30)->default('awaiting_payment')->index();
+            // CHO_XU_LY|CHO_THANH_TOAN|DA_THANH_TOAN|DANG_GIAO_HANG|DA_GIAO_HANG|DA_HUY
+            $table->string('trang_thai', 30)->default('CHO_THANH_TOAN')->index();
 
             // Phương thức thanh toán user chọn lúc đặt
             // cod|momo|vnpay

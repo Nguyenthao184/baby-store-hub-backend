@@ -10,6 +10,7 @@ use App\Models\ChiTietDonHang;
 use Illuminate\Support\Facades\Log;
 use App\Http\Requests\Checkout\DatHangRequest;
 use App\Models\KhachHang;
+use App\Services\GhnService;
 use App\Services\GioHangService;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
@@ -91,235 +92,162 @@ class CheckoutController extends Controller
             : response()->json(['message' => 'Thanh toán thất bại'], 400);
     }
 
-    // public function datHangOnline(DatHangRequest $request)
-    // {
-    //      $data   = $request->validated();
-    // $userId = $request->user()->id; // Thêm dòng này
+    public function datHangOnline(DatHangRequest $request)
+    {
+        $data   = $request->validated();
+        $userId = $request->user()->id;
 
-    // $khachHang = KhachHang::where('taiKhoan_id', $userId)->first();
-    // if ($khachHang) {
-    //     $khachHangId = $khachHang->id;
-    // }
+        // 1) Map KhachHang theo user
+        $kh = KhachHang::where('taiKhoan_id', $userId)->first();
+        $khachHangId = $kh?->id;
 
-    //     if (!in_array($data['phuong_thuc_thanh_toan'], ['vnpay', 'momo'])) {
-    //         return response()->json(['message' => 'Chỉ hỗ trợ vnpay/momo trong API này'], 422);
-    //     }
+        // 2) Lấy giỏ của chính user
+        $gio = $this->gioHang->layGio($userId);
+        if (empty($gio['san_pham'])) {
+            return response()->json([
+                'message' => 'Giỏ hàng trống.',
+                'errors'  => ['items' => ['Giỏ hàng trống.']]
+            ], 422);
+        }
 
-    //     return DB::transaction(function () use ($data, $userId) {
+        return DB::transaction(function () use ($data, $userId, $gio, $khachHangId) {
+            $items   = $gio['san_pham'];
+            $tamTinh = (float) $gio['tam_tinh'];
 
-    //         // ===== 1) TÍNH THEO CÔNG THỨC MỚI =====
-    //         //$tamTinh = 0.0;
+            $giamVoucher  = (float)($data['giam_voucher']   ?? 0);
+            $giamDiem     = (float)($data['giam_diem']      ?? 0);
+            $phiVC        = (float)($data['phi_van_chuyen'] ?? 0);
+            $phiCOD       = (float)($data['phi_cod']        ?? 0);
 
-    //         // foreach ($data['items'] as &$it) {
-    //         //     $gia     = (float) ($it['gia'] ?? 0);
-    //         //     $vatPct  = (float) ($it['vat'] ?? 0);
-    //         //     $giamRaw = (float) ($it['giam_gia'] ?? 0);   // có thể là % (0..1) hoặc VND/sp
-    //         //     $sl      = (int)   ($it['so_luong'] ?? 0);
-    //         //     $noiBat  = (bool)  ($it['noi_bat'] ?? false); // nếu FE không gửi, sẽ là false
+            $tongThanhToan = round($tamTinh - $giamVoucher - $giamDiem + $phiVC + $phiCOD, 2);
 
-    //         //     if ($giamRaw >= 0 && $giamRaw <= 1) {
-    //         //         // giảm theo TỶ LỆ
-    //         //         $discFactor = $noiBat ? 1.0 : max(0.0, 1.0 - $giamRaw);
-    //         //         $giaCuoi1sp = round($gia * (1 + $vatPct/100) * $discFactor, 2);
-    //         //     } else {
-    //         //         // fallback: giảm theo SỐ TIỀN VND/sp
-    //         //         $giaSauGiam = max(0.0, $gia - $giamRaw);
-    //         //         $giaCuoi1sp = round($giaSauGiam * (1 + $vatPct/100), 2);
-    //         //     }
-
-    //         //     $thanhTien = round($giaCuoi1sp * $sl, 2);
-    //         //     $it['_gia_cuoi_1sp'] = $giaCuoi1sp;   // lưu tạm để ghi snapshot
-    //         //     $it['_thanh_tien']   = $thanhTien;
-
-    //         //     $tamTinh += $thanhTien;
-    //         // }
-    //         // unset($it);
-    //         $gio = $this->gioHang->layGio($userId);
-
-    //         $items   = $gio['san_pham'];            // danh sách item trong giỏ
-    //         $tamTinh = (float) $gio['tam_tinh'];    // tổng tạm tính
-    //         $giamVoucher   = (float)($data['giam_voucher'] ?? 0);
-    //         $giamDiem      = (float)($data['giam_diem'] ?? 0);
-    //         $phiVC         = (float)($data['phi_van_chuyen'] ?? 0);
-    //         $phiCOD        = (float)($data['phi_cod'] ?? 0); // nếu không dùng COD thì luôn = 0
-
-    //         $tongThanhToan = round($tamTinh - $giamVoucher - $giamDiem + $phiVC + $phiCOD, 2);
-
-    //         // ===== 2) TẠO ĐƠN HÀNG =====
-    //         $donHangId = (string) Str::uuid();
-    //         $maDonHang = $this->genMaDonHang();
-
-    //         $donhang = DonHang::create([
-    //             'id'                         => $donHangId,
-    //             'ma_don_hang'                => $maDonHang,
-    //             'khach_hang_id'              => $data['khach_hang_id'],
-    //             'ten_nguoi_nhan'             => $data['ten_nguoi_nhan'],
-    //             'so_dien_thoai'              => $data['so_dien_thoai'],
-    //             'dia_chi'                    => $data['dia_chi'] ?? null,
-    //             'ghi_chu'                    => $data['ghi_chu'] ?? null,
-
-    //             'tam_tinh'                   => $tamTinh,
-    //             'giam_voucher'               => $giamVoucher,
-    //             'giam_diem'                  => $giamDiem,
-    //             'phi_van_chuyen'             => $phiVC,
-    //             // nếu có cột phi_cod thì lưu, không thì bỏ ra
-    //             'tong_thanh_toan'            => $tongThanhToan,
-    //             'voucher_id'                 => $data['voucher_id'] ?? null,
-
-    //             'trang_thai'                 => 'awaiting_payment',
-    //             'phuong_thuc_thanh_toan'     => $data['phuong_thuc_thanh_toan'],
-    //             'ngay_tao'                   => now(),
-    //         ]);
-
-    //         // ===== 3) SNAPSHOT CHI TIẾT =====
-    //         foreach ($items as $it) {
-    //             ChiTietDonHang::create([
-    //                 'id'           => (string) Str::uuid(),
-    //                 'don_hang_id'  => $donhang->id,
-    //                 'san_pham_id'  => $it['id'],
-    //                 'ten_san_pham' => $it['ten'],
-    //                 'gia'          => (float)($it['gia'] ?? 0),     // sau KM nổi bật (chưa VAT)
-    //                 'vat'          => (float)($it['VAT'] ?? 0),
-    //                 'giam_gia'     => (float)($it['giamGia'] ?? 0), // nếu có
-    //                 'so_luong'     => (int)($it['soLuong'] ?? 1),
-    //                 'thanh_tien'   => (float)($it['thanh_tien'] ?? 0),
-    //             ]);
-    //         }
-
-    //         // ===== 4) THANH TOÁN PENDING =====
-    //         $txnRef = (string) $donhang->id; // trùng vnp_TxnRef
-    //         ThanhToan::create([
-    //             'don_hang_id'   => $donhang->id,
-    //             'kenh'          => 'vnpay',
-    //             'so_tien'       => $donhang->tong_thanh_toan,
-    //             'don_vi_tien'   => 'VND',
-    //             'trang_thai'    => 'CHO_XU_LY',
-    //             'ma_tham_chieu' => $txnRef,
-    //             'ma_giao_dich'  => null,
-    //             'ma_ket_qua'    => null,
-    //             'noi_dung'      => 'Chờ khách thanh toán',
-    //             'raw_return'    => null,
-    //         ]);
-
-    //         // ===== 5) URL THANH TOÁN =====
-    //         if ($donhang->phuong_thuc_thanh_toan === 'vnpay') {
-    //             $paymentUrl = $this->buildVnpayUrl($donhang);
-    //             // KHÔNG xóa giỏ ở đây
-    //         } elseif ($donhang->phuong_thuc_thanh_toan === 'cod') {
-    //             // COD thì coi như chốt đơn
-    //             $this->gioHang->xoaHet($userId);
-    //         } else {
-    //             $paymentUrl = ''; // Chưa hỗ trợ Momo trong API này
-    //         }
-
-
-    //         return response()->json([
-    //             'message'      => 'Tạo đơn hàng thành công, chờ thanh toán',
-    //             'don_hang_id'  => $donhang->id,
-    //             'ma_don_hang'  => $donhang->ma_don_hang,
-    //             'payment_url'  => $paymentUrl,
-    //         ], 201);
-    //     });
-    //     // Sau khi tạo đơn
-    //     $this->gioHang->xoaHet($request->user()->id);
-    // }
-   public function datHangOnline(DatHangRequest $request)
-{
-    $data   = $request->validated();
-    $userId = $request->user()->id;
-
-    // 1) Map KhachHang theo user
-    $kh = KhachHang::where('taiKhoan_id', $userId)->first(); // cột này có trong migration【:contentReference[oaicite:1]{index=1}】
-    $khachHangId = $kh?->id; // có thì dùng, chưa có thì để null (nếu schema cho phép)
-
-    // 2) Lấy giỏ của chính user
-    $gio = $this->gioHang->layGio($userId); // service đang lấy theo userId【:contentReference[oaicite:2]{index=2}】
-    if (empty($gio['san_pham'])) {
-        return response()->json([
-            'message' => 'Giỏ hàng trống.',
-            'errors'  => ['items' => ['Giỏ hàng trống.']]
-        ], 422);
-    }
-
-    return DB::transaction(function () use ($data, $userId, $gio, $khachHangId) {
-        $items   = $gio['san_pham'];
-        $tamTinh = (float) $gio['tam_tinh'];
-
-        $giamVoucher  = (float)($data['giam_voucher']   ?? 0);
-        $giamDiem     = (float)($data['giam_diem']      ?? 0);
-        $phiVC        = (float)($data['phi_van_chuyen'] ?? 0);
-        $phiCOD       = (float)($data['phi_cod']        ?? 0);
-
-        $tongThanhToan = round($tamTinh - $giamVoucher - $giamDiem + $phiVC + $phiCOD, 2);
-
-        $donhang = DonHang::create([
-            'id'                      => (string) Str::uuid(),
-            'ma_don_hang'             => $this->genMaDonHang(),
-            'khach_hang_id'           => $khachHangId,      // <-- dùng ID đã map (đừng comment)
-            'ten_nguoi_nhan'          => $data['ten_nguoi_nhan'],
-            'so_dien_thoai'           => $data['so_dien_thoai'],
-            'dia_chi'                 => $data['dia_chi'] ?? null,
-            'ghi_chu'                 => $data['ghi_chu'] ?? null,
-            'tam_tinh'                => $tamTinh,
-            'giam_voucher'            => $giamVoucher,
-            'giam_diem'               => $giamDiem,
-            'phi_van_chuyen'          => $phiVC,
-            'tong_thanh_toan'         => $tongThanhToan,
-            'voucher_id'              => $data['voucher_id'] ?? null,
-            'trang_thai'              => 'awaiting_payment',
-            'phuong_thuc_thanh_toan'  => $data['phuong_thuc_thanh_toan'],
-            'ngay_tao'                => now(),
-        ]);
-
-        foreach ($items as $it) {
-            ChiTietDonHang::create([
-                'id'           => (string) \Illuminate\Support\Str::uuid(),
-                'don_hang_id'  => $donhang->id,
-                'san_pham_id'  => $it['id'],
-                'ten_san_pham' => $it['ten'],
-                'gia'          => (float)($it['gia'] ?? 0),
-                'vat'          => (float)($it['VAT'] ?? 0),
-                'giam_gia'     => (float)($it['giamGia'] ?? 0),
-                'so_luong'     => (int)($it['soLuong'] ?? 1),
-                'thanh_tien'   => (float)($it['thanh_tien'] ?? 0),
+            $donhang = DonHang::create([
+                'id'                      => (string) Str::uuid(),
+                'ma_don_hang'             => $this->genMaDonHang(),
+                'khach_hang_id'           => $khachHangId,
+                'ten_nguoi_nhan'          => $data['ten_nguoi_nhan'],
+                'so_dien_thoai'           => $data['so_dien_thoai'],
+                'dia_chi'                 => $data['dia_chi'] ?? null,
+                'ghi_chu'                 => $data['ghi_chu'] ?? null,
+                'tam_tinh'                => $tamTinh,
+                'giam_voucher'            => $giamVoucher,
+                'giam_diem'               => $giamDiem,
+                'phi_van_chuyen'          => $phiVC,
+                'tong_thanh_toan'         => $tongThanhToan,
+                'voucher_id'              => $data['voucher_id'] ?? null,
+                'trang_thai'              => 'CHO_THANH_TOAN',
+                'phuong_thuc_thanh_toan'  => $data['phuong_thuc_thanh_toan'],
+                'ngay_tao'                => now(),
             ]);
-        }
 
-        ThanhToan::create([
-            'don_hang_id'   => $donhang->id,
-            'kenh'          => $data['phuong_thuc_thanh_toan'],
-            'so_tien'       => $donhang->tong_thanh_toan,
-            'don_vi_tien'   => 'VND',
-            'trang_thai'    => 'CHO_XU_LY',
-            'ma_tham_chieu' => $donhang->id,
-        ]);
+            foreach ($items as $it) {
+                ChiTietDonHang::create([
+                    'id'           => (string) Str::uuid(),
+                    'don_hang_id'  => $donhang->id,
+                    'san_pham_id'  => $it['id'],
+                    'ten_san_pham' => $it['ten'],
+                    'gia'          => (float)($it['gia'] ?? 0),
+                    'vat'          => (float)($it['VAT'] ?? 0),
+                    'giam_gia'     => (float)($it['giamGia'] ?? 0),
+                    'so_luong'     => (int)($it['soLuong'] ?? 1),
+                    'thanh_tien'   => (float)($it['thanh_tien'] ?? 0),
+                ]);
+            }
 
-        // ... sau khi create DonHang + ThanhToan (kenh = $data['phuong_thuc_thanh_toan'])
-        $paymentUrl = null;
-        if ($donhang->phuong_thuc_thanh_toan === 'vnpay') {
-            $paymentUrl = $this->buildVnpayUrl($donhang);
-        } elseif ($donhang->phuong_thuc_thanh_toan === 'momo') {
-            $paymentUrl = $this->buildMomoUrl($donhang); // <--- thêm dòng này
-        } elseif ($donhang->phuong_thuc_thanh_toan === 'cod') {
-            $this->gioHang->xoaHet($userId);
-        }
+            ThanhToan::create([
+                'don_hang_id'   => $donhang->id,
+                'kenh'          => $data['phuong_thuc_thanh_toan'],
+                'so_tien'       => $donhang->tong_thanh_toan,
+                'don_vi_tien'   => 'VND',
+                'trang_thai'    => 'CHO_XU_LY',
+                'ma_tham_chieu' => $donhang->id,
+            ]);
 
+            // 6) Gọi GHN tạo đơn NGAY LÚC ĐẶT HÀNG (giống COD)
+            $ghn = app()->make(\App\Services\GhnService::class);
 
-        return response()->json([
-            'message'      => 'Tạo đơn hàng thành công, chờ thanh toán',
-            'don_hang_id'  => $donhang->id,
-            'ma_don_hang'  => $donhang->ma_don_hang,
-            'payment_url'  => $paymentUrl,
-        ], 201);
-    });
-}
+            $totalWeight = collect($items)->reduce(function ($sum, $it) {
+                $w  = (int)($it['weight'] ?? 100);
+                $sl = (int)($it['soLuong'] ?? 1);
+                return $sum + $w * $sl;
+            }, 0);
+            if ($totalWeight <= 0) $totalWeight = (int)($data['total_weight'] ?? 500);
 
+            $fromDistrictId = (int) env('GHN_FROM_DISTRICT_ID');
+            $toDistrictId   = (int) $data['to_district_id'];
+            $serviceId      = $ghn->getServiceId($fromDistrictId, $toDistrictId, 2); // Chuẩn
+
+            $method    = $donhang->phuong_thuc_thanh_toan; // 'vnpay' | 'momo' | 'cod'
+            $codAmount = ($method === 'cod') ? (int) round($donhang->tong_thanh_toan) : 0;
+
+            $payload = [
+                'to_name'          => $data['ten_nguoi_nhan'],
+                'to_phone'         => $data['so_dien_thoai'],
+                'to_address'       => $data['dia_chi'],
+                'to_ward_code'     => $data['to_ward_code'],
+                'to_district_id'   => $toDistrictId,
+                'service_type_id'  => 2,
+                'service_id'       => $serviceId,
+                'payment_type_id'  => 2, // người nhận trả phí; nếu shop trả phí thì = 1
+                'required_note'    => 'KHONGCHOXEMHANG',
+                'weight'           => (int) $totalWeight,
+                'cod_amount'       => $codAmount,
+                'client_order_code'=> $donhang->ma_don_hang,
+                'items' => collect($items)->map(fn ($i) => [
+                    'name'     => $i['ten'],
+                    'quantity' => (int)($i['soLuong'] ?? 1),
+                    'price'    => (int) round($i['gia'] ?? 0),
+                    'weight'   => (int)($i['weight'] ?? 100),
+                ])->values()->all(),
+            ];
+
+            $res = $ghn->createOrder($payload);
+            if (($res['code'] ?? 0) !== 200) {
+                throw new \RuntimeException('GHN tạo đơn thất bại: ' . ($res['message'] ?? ''));
+            }
+
+            $orderCode = data_get($res, 'data.order_code');
+
+            $donhang->update([
+                'don_vi_van_chuyen' => 'GHN',
+                'ma_van_don'        => $orderCode,
+                'ngay_cap_nhat'     => now(),
+            ]);
+
+            if ($method === 'cod') {
+                ThanhToan::where('don_hang_id', $donhang->id)
+                    ->latest('created_at')
+                    ->limit(1)
+                    ->update(['ma_tham_chieu' => $orderCode]);
+
+                // COD: xoá giỏ luôn
+                $this->gioHang->xoaHet($userId);
+            }
+
+            // Build payment URL cho online
+            $paymentUrl = null;
+            if ($method === 'vnpay') {
+                $paymentUrl = $this->buildVnpayUrl($donhang);
+            } elseif ($method === 'momo') {
+                $paymentUrl = $this->buildMomoUrl($donhang);
+            }
+
+            // TRẢ VỀ KẾT QUẢ tại đây
+            return response()->json([
+                'message'      => 'Tạo đơn hàng thành công, chờ thanh toán',
+                'don_hang_id'  => $donhang->id,
+                'ma_don_hang'  => $donhang->ma_don_hang,
+                'ma_van_don'   => $donhang->ma_van_don,
+                'payment_url'  => $paymentUrl,
+            ], 201);
+        }); // <— ĐÓNG transaction + chấm phẩy
+    }
 
     private function createHoaDonFromDonHang(DonHang $donhang): HoaDon
     {
         return DB::transaction(function () use ($donhang) {
 
-            // 1) Idempotent + khóa chống race
+            // 1) Idempotent + khoá chống race
             $existing = HoaDon::where('don_hang_id', $donhang->id)
                 ->lockForUpdate()
                 ->first();
@@ -357,10 +285,10 @@ class CheckoutController extends Controller
             $phiVC         = (float) ($donhang->phi_van_chuyen ?? 0);
             $tongThanhToan = (float) ($donhang->tong_thanh_toan ?? 0);
 
-            // 4) Tạo hoá đơn
+            // 4) Tạo hoá đơn — GỌI HÀM CHUNG Ở MODEL
             $hoaDon = HoaDon::create([
                 'id'                      => (string) Str::uuid(),
-                'ma_hoa_don'              => $this->genSoHoaDon(), // tạo số HĐ duy nhất trong ngày
+                'ma_hoa_don'              => HoaDon::genSoHoaDon(), // <— dùng chung
                 'don_hang_id'             => $donhang->id,
                 'ngay_xuat'               => now(),
                 'tong_tien_hang'          => $tongTienHang,
@@ -446,6 +374,155 @@ class CheckoutController extends Controller
 
         return 'DH-' . $year . '-' . $ymd . '-' . str_pad((string)$seq, 6, '0', STR_PAD_LEFT);
     }
+
+    public function placeCodOrder(DatHangRequest $req, GhnService $ghn)
+    {
+        // Lấy dữ liệu đầu vào & user
+        $data   = $req->validated();
+        $userId = $req->user()->id;
+
+        // 1) Map Khách hàng theo user (nếu có)
+        $kh = KhachHang::where('taiKhoan_id', $userId)->first();
+        $khachHangId = $kh?->id;
+
+        // 2) Lấy giỏ của chính user
+        $gio = $this->gioHang->layGio($userId);
+        if (empty($gio['san_pham'])) {
+            return response()->json([
+                'message' => 'Giỏ hàng trống.',
+                'errors'  => ['items' => ['Giỏ hàng trống.']]
+            ], 422);
+        }
+
+        return \DB::transaction(function () use ($data, $userId, $gio, $khachHangId, $ghn) {
+            // Tính tổng tiền từ giỏ
+            $items   = $gio['san_pham'];              // [{id, ten, gia, VAT, giamGia, soLuong, thanh_tien, weight?}]
+            $tamTinh = (float) ($gio['tam_tinh'] ?? 0);
+
+            $giamVoucher  = (float)($data['giam_voucher']   ?? 0);
+            $giamDiem     = (float)($data['giam_diem']      ?? 0);
+            $phiVC        = (float)($data['phi_van_chuyen'] ?? 0);
+            $phiCOD       = (float)($data['phi_cod']        ?? 0);
+
+            $tongThanhToan = round($tamTinh - $giamVoucher - $giamDiem + $phiVC + $phiCOD, 2);
+
+            // Tổng khối lượng đơn (gram) – nếu item không có weight thì mặc định 100g/sp
+            $totalWeight = collect($items)->reduce(function ($sum, $it) {
+                $w  = (int)($it['weight'] ?? 100);
+                $sl = (int)($it['soLuong'] ?? 1);
+                return $sum + $w * $sl;
+            }, 0);
+            if ($totalWeight <= 0) $totalWeight = (int)($data['total_weight'] ?? 500);
+
+            // 3) Tạo Đơn hàng
+            $donHang = DonHang::create([
+                'id'                       => (string) Str::uuid(),
+                'ma_don_hang'              => $this->genMaDonHang(),
+                'khach_hang_id'            => $khachHangId,                    // giống datHangOnline
+                'ten_nguoi_nhan'           => $data['ten_nguoi_nhan'],
+                'so_dien_thoai'            => $data['so_dien_thoai'],
+                'dia_chi'                  => $data['dia_chi'] ?? null,
+                'ghi_chu'                  => $data['ghi_chu'] ?? null,
+                'tam_tinh'                 => $tamTinh,
+                'giam_voucher'             => $giamVoucher,
+                'giam_diem'                => $giamDiem,
+                'phi_van_chuyen'           => $phiVC,
+                'tong_thanh_toan'          => $tongThanhToan,
+                'voucher_id'               => $data['voucher_id'] ?? null,
+
+                'don_vi_van_chuyen'        => 'GHN',
+                'ma_van_don'               => null,
+
+                'trang_thai'               => 'CHO_XU_LY',
+                'phuong_thuc_thanh_toan'   => 'cod',
+                'ngay_tao'                 => now(),
+            ]);
+
+            // 4) Snapshot chi tiết đơn hàng từ giỏ (đồng bộ với datHangOnline)
+            foreach ($items as $it) {
+                ChiTietDonHang::create([
+                    'id'           => (string) Str::uuid(),
+                    'don_hang_id'  => $donHang->id,
+                    'san_pham_id'  => $it['id'],
+                    'ten_san_pham' => $it['ten'],
+                    'gia'          => (float)($it['gia'] ?? 0),
+                    'vat'          => (float)($it['VAT'] ?? 0),
+                    'giam_gia'     => (float)($it['giamGia'] ?? 0),
+                    'so_luong'     => (int)($it['soLuong'] ?? 1),
+                    'thanh_tien'   => (float)($it['thanh_tien'] ?? 0),
+                ]);
+            }
+
+            // 5) Tạo bản ghi Thanh toán (COD)
+            $tt = ThanhToan::create([
+                'don_hang_id' => $donHang->id,
+                'kenh'        => 'cod',                 // giữ nguyên theo code của bạn
+                'so_tien'     => $donHang->tong_thanh_toan,
+                'don_vi_tien' => 'VND',
+                'trang_thai'  => 'CHO_XU_LY',
+                'thong_diep'  => 'Thanh toán khi nhận hàng',
+            ]);
+
+            // 6) Gọi GHN tạo đơn (COD = tổng tiền)
+            $fromDistrictId = (int) env('GHN_FROM_DISTRICT_ID');
+            $toDistrictId   = (int) $data['to_district_id'];
+            $serviceId      = $ghn->getServiceId($fromDistrictId, $toDistrictId, 2); // Chuẩn
+
+            $payload = [
+                'to_name'          => $data['ten_nguoi_nhan'],
+                'to_phone'         => $data['so_dien_thoai'],
+                'to_address'       => $data['dia_chi'],
+                'to_ward_code'     => $data['to_ward_code'],
+                'to_district_id'   => $toDistrictId,
+
+                'service_type_id'  => 2,
+                'service_id'       => $serviceId,
+                'payment_type_id'  => 2, // người nhận trả phí
+                'required_note'    => 'KHONGCHOXEMHANG',
+
+                'weight'           => (int) $totalWeight,
+                'cod_amount'       => (int) round($donHang->tong_thanh_toan),
+
+                'client_order_code'=> $donHang->ma_don_hang,
+
+                'items' => collect($items)->map(fn ($i) => [
+                    'name'     => $i['ten'],
+                    'quantity' => (int)($i['soLuong'] ?? 1),
+                    'price'    => (int) round($i['gia'] ?? 0),
+                    'weight'   => (int)($i['weight'] ?? 100),
+                ])->values()->all(),
+            ];
+
+            $res = $ghn->createOrder($payload);
+            if (($res['code'] ?? 0) !== 200) {
+                throw new \RuntimeException('GHN tạo đơn thất bại: ' . ($res['message'] ?? ''));
+            }
+
+            $orderCode = data_get($res, 'data.order_code');
+            $donHang->update([
+                'ma_van_don'   => $orderCode,
+                'ngay_cap_nhat'=> now(),
+            ]);
+
+            $tt->update(['ma_tham_chieu' => $orderCode]);
+
+            // 7) Xoá giỏ sau khi tạo đơn COD thành công
+            $this->gioHang->xoaHet($userId);
+
+            return response()->json([
+                'message'  => 'Đặt hàng COD thành công. GHN đã tạo vận đơn.',
+                'don_hang' => [
+                    'id'            => $donHang->id,
+                    'ma_don_hang'   => $donHang->ma_don_hang,
+                    'ma_van_don'    => $donHang->ma_van_don,
+                    'trang_thai'    => $donHang->trang_thai,
+                    'phuong_thuc'   => $donHang->phuong_thuc_thanh_toan,
+                    'don_vi_vc'     => $donHang->don_vi_van_chuyen,
+                ],
+            ], 201);
+        });
+    }
+
     /* ================= MOMO ================= */
 
     private function buildMomoUrl(DonHang $donhang): ?string
@@ -521,22 +598,25 @@ class CheckoutController extends Controller
         $orderId    = $p['orderId'] ?? null;
         $resultCode = (int)($p['resultCode'] ?? -1);
         $transId    = $p['transId'] ?? null;
-        $ok = ((int)($p['resultCode'] ?? -1)) === 0;
 
         if ($orderId) {
-            ThanhToan::where('ma_tham_chieu', $orderId)
+            $tt = ThanhToan::where('ma_tham_chieu', $orderId)
                 ->whereRaw('LOWER(kenh) = ?', ['momo'])
-                ->update([
+                ->orderByDesc('id')
+                ->first();
+
+            if ($tt && $tt->trang_thai !== 'DA_THANH_TOAN') {
+                $tt->update([
                     'trang_thai'   => $resultCode === 0 ? 'DA_THANH_TOAN' : 'THAT_BAI',
                     'ma_giao_dich' => $transId,
-                    'ma_ket_qua'   => $resultCode,
+                    'ma_ket_qua'   => (string)$resultCode,
                     'raw_return'   => $p,
                 ]);
+            }
         }
 
-        $fe = config('app.frontend_url'); // http://localhost:8000
-    return redirect()->away($fe . '/checkout/result?orderId=' . urlencode($orderId) . '&gw=momo');
-
+        $fe = config('app.frontend_url');
+        return redirect()->away($fe . '/checkout/result?orderId=' . urlencode($orderId) . '&gw=momo');
     }
 
     public function momoIpn(Request $request)
@@ -549,16 +629,24 @@ class CheckoutController extends Controller
         $transId    = $p['transId'] ?? null;
 
         if ($orderId) {
-            ThanhToan::where('ma_tham_chieu', $orderId)
+            $tt = ThanhToan::where('ma_tham_chieu', $orderId)
                 ->whereRaw('LOWER(kenh) = ?', ['momo'])
-                ->update([
+                ->orderByDesc('id')
+                ->first();
+
+            if ($tt && $tt->trang_thai !== 'DA_THANH_TOAN') {
+                $tt->update([
                     'trang_thai'   => $resultCode === 0 ? 'DA_THANH_TOAN' : 'THAT_BAI',
                     'ma_giao_dich' => $transId,
-                    'ma_ket_qua'   => $resultCode,
+                    'ma_ket_qua'   => (string)$resultCode,
                     'raw_ipn'      => $p,
                 ]);
+            } else {
+                Log::warning('MoMo IPN: ThanhToan not found or already paid', ['orderId' => $orderId]);
+            }
         }
 
         return response()->json(['resultCode' => 0, 'message' => 'Confirm Success']);
     }
+
 }

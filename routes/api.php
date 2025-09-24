@@ -13,7 +13,9 @@ use App\Http\Controllers\PhieuKiemKhoController;
 use App\Http\Controllers\PhieuNhapKhoController;
 use App\Http\Controllers\KhachHangProfileController;
 use App\Http\Controllers\CheckoutController;
+use App\Http\Controllers\GhnWebhookController;
 use App\Http\Controllers\PaymentController;
+use App\Http\Controllers\DonMuaController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Cache;
@@ -107,11 +109,13 @@ Route::prefix('phieu-nhap-kho')->group(function () {
     Route::post('/{id}/xac-nhan', [PhieuNhapKhoController::class, 'xacNhanNhapKho']); // Xác nhận nhập kho (cộng vào tồn kho, chuyển trạng thái)
     Route::put('/{id}/huy', [PhieuNhapKhoController::class, 'huyPhieuNhap']); // Hủy phiếu nhập
 });
+
+Route::post('/orders/{id}/to-shipping', [DonHangController::class, 'moveToShipping']); // Chuyển trạng thái đơn hàng sang Đang giao
+
 });
 
-    Route::middleware(['auth:sanctum','authRole:KhachHang'])->group(function () { 
+Route::middleware(['auth:sanctum','authRole:KhachHang'])->group(function () { 
     // Profile routes for KhachHang 
-
     Route::get('/khach-hang/profile', [KhachHangProfileController::class, 'show']); // Lấy hồ sơ cá nhân 
     Route::post('/khach-hang/profile', [KhachHangProfileController::class, 'update']); // Cập nhật hồ sơ 
     Route::post('/khach-hang/profile/avatar', [KhachHangProfileController::class, 'updateAvatar']); // Thay avatar 
@@ -126,14 +130,21 @@ Route::prefix('phieu-nhap-kho')->group(function () {
 
     Route::post('/gio-hang/tinh-tong', [GioHangController::class, 'tinhTong']);
     Route::post('/checkout/dat-hang', [CheckoutController::class, 'datHangOnline']);
-    
     Route::get('/thanh-toan/{donhangid}/trang-thai', [PaymentController::class, 'status']);
+        
+    Route::prefix('checkout')->group(function () {
+        Route::post('/cod', [CheckoutController::class, 'placeCodOrder']); // tạo đơn COD
+    });           
 
-    
+    // Đơn mua (của khách)
+    Route::post('/don-mua/{id}/cancel', [DonMuaController::class, 'cancelByCustomer']); // Khách hàng hủy đơn hàng
+    Route::get('/don-mua',           [DonMuaController::class, 'index']);       // lọc + phân trang
+    Route::get('/don-mua/{id}',      [DonMuaController::class, 'show']);        // xem chi tiết
+    Route::post('/don-mua/{id}/reorder', [DonMuaController::class, 'reorder']); // mua lại
 });
-
+// Webhook GHN (public)
+Route::post('/webhooks/ghn', [GhnWebhookController::class, 'handle']);
 Route::get('/vnpay/return', [CheckoutController::class, 'vnpayReturn']); 
-
 // Route::post('/momo_payment', [CheckoutController::class, 'momoPayment']);
 Route::match(['GET','POST'], '/momo/return', [CheckoutController::class, 'momoReturn'])->name('momo.return'); // public
 Route::match(['GET','POST'], '/momo/ipn',    [CheckoutController::class, 'momoIpn'])->name('momo.ipn');       // public

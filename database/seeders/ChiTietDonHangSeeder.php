@@ -25,32 +25,43 @@ class ChiTietDonHangSeeder extends Seeder
         $records = [];
 
         foreach ($donHangs as $donHang) {
-            // Lấy ngẫu nhiên từ 1 đến 3 sản phẩm cho mỗi đơn hàng
-            $sanPhamsRandom = $sanPhams->random(rand(1, 3));
+            // Lấy ngẫu nhiên 1..3 sản phẩm
+            $countPick = min(max(1, rand(1, 3)), $sanPhams->count());
+            $sanPhamsRandom = $sanPhams->random($countPick);
+            if ($countPick === 1 && !$sanPhamsRandom instanceof \Illuminate\Support\Collection) {
+                $sanPhamsRandom = collect([$sanPhamsRandom]);
+            }
 
             foreach ($sanPhamsRandom as $sp) {
-                $soLuong = rand(1, 5); // Số lượng ngẫu nhiên từ 1 đến 5
-                $giaGoc = $sp->giaBan; // Giá gốc của sản phẩm
-                $vat = floatval($sp->vat ?? 0); // VAT của sản phẩm
-                $giamGia = rand(0, 5000); // Giảm giá ngẫu nhiên (nếu có)
-                $giaBan = $giaGoc * (1 + $vat / 100); // Giá sau VAT
-                $thanhTien = ($giaBan - $giamGia) * $soLuong; // Thành tiền
+                $soLuong = rand(1, 5);
+                $giaGoc  = (float) $sp->giaBan;
+                $vat     = 8.00; // <<== VAT cố định 8%
+
+                // Giá sau VAT
+                $giaSauVat = round($giaGoc * (1 + $vat / 100), 2);
+
+                // Giảm giá: tối đa 15% giá trị dòng
+                $giaTriDong = $giaGoc * $soLuong;
+                $giamGiaMax = round($giaTriDong * 0.15, 2);
+                $giamGia    = round(rand(0, (int) ($giamGiaMax * 100)) / 100, 2);
+
+                // Thành tiền sau VAT
+                $thanhTienSauVat = max(0, round(($giaSauVat * $soLuong) - $giamGia, 2));
 
                 $records[] = [
-                    'id' => Str::uuid(),
-                    'don_hang_id' => $donHang->id,
-                    'san_pham_id' => $sp->id,
+                    'id'           => (string) Str::uuid(),
+                    'don_hang_id'  => $donHang->id,
+                    'san_pham_id'  => $sp->id,
                     'ten_san_pham' => $sp->tenSanPham,
-                    'gia' => $giaGoc,
-                    'vat' => $vat,
-                    'giam_gia' => $giamGia,
-                    'so_luong' => $soLuong,
-                    'thanh_tien' => $thanhTien,
+                    'gia'          => round($giaGoc, 2),   // đơn giá gốc
+                    'vat'          => $vat,                // VAT cố định
+                    'giam_gia'     => $giamGia,
+                    'so_luong'     => $soLuong,
+                    'thanh_tien'   => $thanhTienSauVat,    // thành tiền đã VAT
                 ];
             }
         }
 
-        // Chèn dữ liệu vào bảng chitietdonhang
         DB::table('chitietdonhang')->insert($records);
     }
 }

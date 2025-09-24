@@ -21,44 +21,38 @@ class DonHangController extends Controller
         try {
             $data = $request->validated();
 
-            // Map phương thức thanh toán từ FE -> enum DB
-            $phuongThucMap = [
-                'cash' => 'cod',
+            // Map FE -> giá trị lưu DB
+            $map = [
+                'cod'  => 'cod',
                 'bank' => 'bank_transfer',
                 'card' => 'credit_card',
             ];
-            $phuongThucThanhToan = $phuongThucMap[$request->phuongThuc] ?? 'cod';
+            $phuongThucThanhToan = $map[$data['phuongThuc']];
 
-            // ===== TÍNH THEO CÔNG THỨC MỚI (không phí vận chuyển) =====
-            $tamTinh   = 0.0;    // tổng tiền hàng (đã gồm VAT và giảm theo từng item)
-            $tongVAT   = 0.0;    // tổng VAT cộng dồn để lưu báo cáo
+            $tamTinh   = 0.0;
+            $tongVAT   = 0.0;
 
-            // Nếu có voucher/điểm thì nhận từ request, offline thường không có
-            $giamVoucher = (float)($request->giamVoucher ?? 0);
-            $giamDiem    = (float)($request->giamDiem ?? 0);
-            $phiCOD      = (float)($request->phiCOD ?? 0); // nếu không dùng COD, để = 0
+            $giamVoucher = (float)($data['giamVoucher'] ?? 0);
+            $giamDiem    = (float)($data['giamDiem'] ?? 0);
 
-            $chiTietSnapshots = []; // gom lại để ghi bảng chi tiết
+            // ✅ chỉ tính khi COD
+            $phiCOD      = $data['phuongThuc'] === 'cod' ? (float)($data['phiCOD'] ?? 0) : 0.0;
 
-            foreach ($request->sanPhams as $item) {
-                $gia     = (float)($item['giaBan'] ?? 0);     // giá niêm yết / 1sp (chưa VAT)
-                $vatPct  = (float)($item['vat'] ?? 0);        // % VAT
-                $giamRaw = (float)($item['giamGia'] ?? 0);    // có thể là tỷ lệ (0..1) hoặc VND/sp
+            $chiTietSnapshots = [];
+
+            foreach ($data['sanPhams'] as $item) {
+                $gia     = (float)($item['giaBan'] ?? 0);
+                $vatPct  = (float)($item['vat'] ?? 0);
+                $giamRaw = (float)($item['giamGia'] ?? 0);
                 $sl      = (int)  ($item['soLuong'] ?? 0);
-                $noiBat  = (bool) ($item['noiBat'] ?? false); // nếu có cờ "nổi bật" => không giảm
+                $noiBat  = (bool) ($item['noiBat'] ?? false);
 
-                // Tính giá cuối 1sp theo công thức:
-                // - Nếu giamRaw trong [0,1] => giảm THEO TỶ LỆ sau VAT: gia * (1 + VAT) * (noiBat?1:(1 - giamRaw))
-                // - Nếu giamRaw > 1 => giảm THEO SỐ TIỀN /sp (fallback)
                 if ($giamRaw >= 0 && $giamRaw <= 1) {
                     $discountFactor = $noiBat ? 1.0 : max(0.0, 1.0 - $giamRaw);
                     $giaCuoi1sp = round($gia * (1 + $vatPct/100.0) * $discountFactor, 2);
-
-                    // tách phần trước VAT & VAT (để cộng dồn)
                     $truocVAT1sp = round($gia * $discountFactor, 2);
                     $vat1sp      = round($giaCuoi1sp - $truocVAT1sp, 2);
                 } else {
-                    // giảm theo số tiền
                     $giaSauGiam  = $noiBat ? $gia : max(0.0, $gia - $giamRaw);
                     $truocVAT1sp = round($giaSauGiam, 2);
                     $vat1sp      = round($truocVAT1sp * $vatPct/100.0, 2);
@@ -66,9 +60,8 @@ class DonHangController extends Controller
                 }
 
                 $thanhTien = round($giaCuoi1sp * $sl, 2);
-
-                $tamTinh += $thanhTien;
-                $tongVAT += $vat1sp * $sl;
+                $tamTinh  += $thanhTien;
+                $tongVAT  += $vat1sp * $sl;
 
                 $chiTietSnapshots[] = [
                     'san_pham_id'  => $item['id'],
@@ -81,74 +74,63 @@ class DonHangController extends Controller
                 ];
             }
 
-            // Không tính phí vận chuyển trong offline
-            $phiVanChuyen  = 0.0;
+            $phiVanChuyen  = 0.0; // offline
             $tongThanhToan = round($tamTinh - $giamVoucher - $giamDiem + $phiCOD, 2);
 
-            // ===== TẠO ĐƠN HÀNG =====
             $donHang = DonHang::create([
                 'id'                         => (string) Str::uuid(),
                 'ma_don_hang'                => 'DH-' . now()->format('YmdHis'),
-                'khach_hang_id'              => $request->khachHang_id,
-                'ten_nguoi_nhan'             => $request->tenNguoiNhan,
-                'so_dien_thoai'              => $request->soDienThoai,
+                'khach_hang_id'              => $data['khachHang_id'],
+                'ten_nguoi_nhan'             => $data['tenNguoiNhan'],
+                'so_dien_thoai'              => $data['soDienThoai'],
                 'tam_tinh'                   => $tamTinh,
                 'giam_voucher'               => $giamVoucher,
-                'giam_diem'                  => $giamDiem,         // nếu không có cột này thì bỏ
-                'phi_van_chuyen'             => $phiVanChuyen,     // = 0 cho offline
+                'giam_diem'                  => $giamDiem,
+                'phi_van_chuyen'             => $phiVanChuyen,
                 'tong_thanh_toan'            => $tongThanhToan,
-                'trang_thai'                 => 'completed',       // offline: thanh toán xong
+                'trang_thai'                 => 'DA_THANH_TOAN',   // ✅ offline thu tiền xong
                 'phuong_thuc_thanh_toan'     => $phuongThucThanhToan,
                 'ngay_tao'                   => now(),
                 'ngay_cap_nhat'              => now(),
             ]);
 
-            // ===== GHI CHI TIẾT + TRỪ KHO =====
             foreach ($chiTietSnapshots as $c) {
                 ChiTietDonHang::create([
                     'id'            => (string) Str::uuid(),
                     'don_hang_id'   => $donHang->id,
                     'san_pham_id'   => $c['san_pham_id'],
                     'ten_san_pham'  => $c['ten_san_pham'],
-                    'gia'           => $c['gia'],       // giá trước VAT
+                    'gia'           => $c['gia'],
                     'vat'           => $c['vat'],
-                    'giam_gia'      => $c['giam_gia'],  // tỷ lệ hoặc VND/sp như trên
+                    'giam_gia'      => $c['giam_gia'],
                     'so_luong'      => $c['so_luong'],
-                    'thanh_tien'    => $c['thanh_tien'] // đã gồm VAT & giảm cho item
+                    'thanh_tien'    => $c['thanh_tien'],
                 ]);
 
-                // Trừ kho (lock để tránh race)
                 $sp = SanPham::where('id', $c['san_pham_id'])->lockForUpdate()->first();
-                if (!$sp) {
+                if (!$sp || (int)$sp->soLuongTon < (int)$c['so_luong']) {
                     DB::rollBack();
-                    return response()->json(['error' => 'Không tìm thấy sản phẩm.'], 404);
-                }
-                if ((int)$sp->soLuongTon < (int)$c['so_luong']) {
-                    DB::rollBack();
-                    return response()->json([
-                        'error' => 'Không đủ hàng tồn kho cho sản phẩm ' . ($sp->tenSanPham ?? $sp->id)
-                    ], 400);
+                    return response()->json(['error' => 'Không đủ tồn kho cho sản phẩm'], 400);
                 }
                 $sp->soLuongTon = (int)$sp->soLuongTon - (int)$c['so_luong'];
                 $sp->save();
             }
 
-            // ===== TẠO HÓA ĐƠN =====
-            // an toàn hơn: tăng số trong ngày (tránh đụng nhau)
+            // Tạo số HĐ an toàn trong ngày
             $today = now()->toDateString();
-            $stt = HoaDon::whereDate('ngay_xuat', $today)->lockForUpdate()->count() + 1;
-            $maHoaDon = 'HD-' . now()->format('Ymd') . '-' . str_pad((string)$stt, 6, '0', STR_PAD_LEFT);
+            $stt   = HoaDon::whereDate('ngay_xuat', $today)->lockForUpdate()->count() + 1;
+            $maHD  = 'HD-' . now()->format('Ymd') . '-' . str_pad((string)$stt, 6, '0', STR_PAD_LEFT);
 
             $hoaDon = HoaDon::create([
                 'id'                      => (string) Str::uuid(),
-                'ma_hoa_don'              => $maHoaDon,
+                'ma_hoa_don'              => $maHD,
                 'don_hang_id'             => $donHang->id,
                 'ngay_xuat'               => now(),
-                'tong_tien_hang'          => $tamTinh,          // đúng định nghĩa: sau VAT & giảm
-                'tong_vat'                => $tongVAT,          // để báo cáo (nếu không cần có thể để 0)
+                'tong_tien_hang'          => $tamTinh,
+                'tong_vat'                => $tongVAT,
                 'giam_voucher'            => $giamVoucher,
-                'giam_diem'               => $giamDiem,         // nếu không có cột thì bỏ
-                'phi_van_chuyen'          => 0,                 // offline: 0
+                'giam_diem'               => $giamDiem,
+                'phi_van_chuyen'          => 0,
                 'tong_thanh_toan'         => $tongThanhToan,
                 'phuong_thuc_thanh_toan'  => $phuongThucThanhToan,
             ]);
@@ -156,14 +138,14 @@ class DonHangController extends Controller
             DB::commit();
 
             return response()->json([
-                'message'                 => 'Thanh toán thành công',
-                'hoaDonId'                => $hoaDon->id,
-                'phuongThucThanhToan'     => $phuongThucThanhToan,
-                'tongTienHang'            => $tamTinh,
-                'tongVAT'                 => $tongVAT,
-                'giamVoucher'             => $giamVoucher,
-                'giamDiem'                => $giamDiem,
-                'tongThanhToan'           => $tongThanhToan,
+                'message'             => 'Thanh toán thành công',
+                'hoaDonId'            => $hoaDon->id,
+                'phuongThucThanhToan' => $phuongThucThanhToan,
+                'tongTienHang'        => $tamTinh,
+                'tongVAT'             => $tongVAT,
+                'giamVoucher'         => $giamVoucher,
+                'giamDiem'            => $giamDiem,
+                'tongThanhToan'       => $tongThanhToan,
             ]);
         } catch (\Exception $e) {
             DB::rollBack();

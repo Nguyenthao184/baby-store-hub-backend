@@ -7,8 +7,10 @@ use Illuminate\Support\Facades\Cache;
 class GhnService
 {
     public function __construct() {
-        $this->baseUrl = rtrim(config('services.ghn.base_url',
-                          'https://online-gateway.ghn.vn/shiip/public-api'), '/');
+        $this->baseUrl = rtrim(
+            config('services.ghn.base_url', 'https://dev-online-gateway.ghn.vn/shiip/public-api'),
+            '/'
+        );
     }
 
     protected function client()
@@ -18,6 +20,12 @@ class GhnService
             'ShopId' => config('services.ghn.shop_id'),
             'Content-Type' => 'application/json',
         ])->acceptJson();
+    }
+
+    private function endpoint(string $path): string
+    {
+        $path = '/' . ltrim($path, '/');
+        return $this->baseUrl . $this->apiPrefix . $path;
     }
 
     /** Tạo đơn GHN (COD) */
@@ -51,20 +59,12 @@ class GhnService
             'to_district'   => $toDistrictId,
         ];
 
-        $res = $this->client()->post($url, $payload);
+        $res = $this->client()->post($url, $payload)->json();
 
-        if ($res->failed()) {
-            // Ném lỗi chi tiết để caller biết lý do
-            throw new RequestException($res);
+        if (($res['code'] ?? 0) !== 200) {
+            throw new \RuntimeException('GHN available-services error: ' . ($res['message'] ?? 'Unknown'));
         }
-
-        $json = $res->json();
-        if (($json['code'] ?? 0) !== 200) {
-            throw new \RuntimeException('GHN available-services error: ' . ($json['message'] ?? 'Unknown'));
-        }
-
-        // Theo GHN, danh sách dịch vụ nằm ở data (mảng)
-        return (array) ($json['data'] ?? []);
+        return (array) ($res['data'] ?? []);
     }
 
     /**
@@ -131,4 +131,67 @@ class GhnService
             return (int) $first['service_id'];
         });
     }
+
+    public function resolveFullAddress(string $address): array
+    {
+        // Chuẩn hóa chuỗi
+        $addr = mb_strtolower($address, 'UTF-8');
+
+        // --- Lấy danh sách tỉnh/thành ---
+        $provinces = Cache::remember("ghn.provinces", 86400, function () {
+            $url = "{$this->baseUrl}/master-data/province";
+            $res = $this->client()->get($url)->throw()->json();
+            return $res['data'] ?? [];
+        });
+
+        $province = collect($provinces)->first(function ($p) use ($addr) {
+            return str_contains($addr, mb_strtolower($p['ProvinceName'], 'UTF-8'));
+        });
+
+        if (!$province) {
+            throw new \RuntimeException('Không tìm thấy tỉnh/thành trong địa chỉ.');
+        }
+
+        $provinceId = $province['ProvinceID'];
+
+        // --- Lấy quận/huyện ---
+        $districts = Cache::remember("ghn.districts.$provinceId", 86400, function () use ($provinceId) {
+            $url = "{$this->baseUrl}/master-data/district";
+            $res = $this->client()->get($url, ['province_id' => $provinceId])->throw()->json();
+            return $res['data'] ?? [];
+        });
+
+        $district = collect($districts)->first(function ($d) use ($addr) {
+            return str_contains($addr, mb_strtolower($d['DistrictName'], 'UTF-8'));
+        });
+
+        if (!$district) {
+            throw new \RuntimeException('Không tìm thấy quận/huyện trong địa chỉ.');
+        }
+
+        $districtId = $district['DistrictID'];
+
+        // --- Lấy phường/xã ---
+        $wards = Cache::remember("ghn.wards.$districtId", 86400, function () use ($districtId) {
+            $url = "{$this->baseUrl}/master-data/ward";
+            $res = $this->client()->get($url, ['district_id' => $districtId])->throw()->json();
+            return $res['data'] ?? [];
+        });
+
+        $ward = collect($wards)->first(function ($w) use ($addr) {
+            return str_contains($addr, mb_strtolower($w['WardName'], 'UTF-8'));
+        });
+
+        if (!$ward) {
+            throw new \RuntimeException('Không tìm thấy phường/xã trong địa chỉ.');
+        }
+
+        return [
+            'province_id'    => $provinceId,
+            'to_district_id' => $districtId,
+            'to_ward_code'   => $ward['WardCode'],
+        ];
+    }
+
+
 }

@@ -116,7 +116,7 @@ class CheckoutController extends Controller
 
             $giamVoucher  = (float)($data['giam_voucher']   ?? 0);
             $giamDiem     = (float)($data['giam_diem']      ?? 0);
-            $phiVC        = (float)($data['phi_van_chuyen'] ?? 0);
+            $phiVC        = 20000.0;
             $phiCOD       = (float)($data['phi_cod']        ?? 0);
 
             $tongThanhToan = round($tamTinh - $giamVoucher - $giamDiem + $phiVC + $phiCOD, 2);
@@ -164,7 +164,7 @@ class CheckoutController extends Controller
             ]);
 
             // 6) Gọi GHN tạo đơn NGAY LÚC ĐẶT HÀNG (giống COD)
-            $ghn = app()->make(\App\Services\GhnService::class);
+            $ghn = app()->make(GhnService::class);
 
             $totalWeight = collect($items)->reduce(function ($sum, $it) {
                 $w  = (int)($it['weight'] ?? 100);
@@ -173,8 +173,17 @@ class CheckoutController extends Controller
             }, 0);
             if ($totalWeight <= 0) $totalWeight = (int)($data['total_weight'] ?? 500);
 
+            // >>> TỰ TÍNH 3 MÃ TỪ ĐỊA CHỈ FE
+            $resolved = $ghn->resolveFullAddress((string)($data['dia_chi'] ?? ''));
+            $provinceId   = (int)($resolved['province_id'] ?? 0);
+            $toDistrictId = (int)($resolved['to_district_id'] ?? 0);
+            $toWardCode   = (string)($resolved['to_ward_code'] ?? '');
+
+            if ($toDistrictId <= 0 || $toWardCode === '') {
+                throw new \RuntimeException('Không xác định được quận/huyện hoặc phường/xã từ địa chỉ.');
+            }
+
             $fromDistrictId = (int) env('GHN_FROM_DISTRICT_ID');
-            $toDistrictId   = (int) $data['to_district_id'];
             $serviceId      = $ghn->getServiceId($fromDistrictId, $toDistrictId, 2); // Chuẩn
 
             $method    = $donhang->phuong_thuc_thanh_toan; // 'vnpay' | 'momo' | 'cod'
@@ -184,8 +193,8 @@ class CheckoutController extends Controller
                 'to_name'          => $data['ten_nguoi_nhan'],
                 'to_phone'         => $data['so_dien_thoai'],
                 'to_address'       => $data['dia_chi'],
-                'to_ward_code'     => $data['to_ward_code'],
-                'to_district_id'   => $toDistrictId,
+                'to_ward_code'     => $toWardCode,          // <<< từ resolver
+                'to_district_id'   => $toDistrictId,        // <<< từ resolver
                 'service_type_id'  => 2,
                 'service_id'       => $serviceId,
                 'payment_type_id'  => 2, // người nhận trả phí; nếu shop trả phí thì = 1
@@ -401,7 +410,7 @@ class CheckoutController extends Controller
 
             $giamVoucher  = (float)($data['giam_voucher']   ?? 0);
             $giamDiem     = (float)($data['giam_diem']      ?? 0);
-            $phiVC        = (float)($data['phi_van_chuyen'] ?? 0);
+            $phiVC        = 20000.0; // cố định 20k
             $phiCOD       = (float)($data['phi_cod']        ?? 0);
 
             $tongThanhToan = round($tamTinh - $giamVoucher - $giamDiem + $phiVC + $phiCOD, 2);
@@ -464,16 +473,26 @@ class CheckoutController extends Controller
             ]);
 
             // 6) Gọi GHN tạo đơn (COD = tổng tiền)
+            // >>> TỰ TÍNH 3 MÃ TỪ ĐỊA CHỈ FE
+            $resolved = $ghn->resolveFullAddress((string)($data['dia_chi'] ?? ''));
+            $provinceId   = (int)($resolved['province_id'] ?? 0);
+            $toDistrictId = (int)($resolved['to_district_id'] ?? 0);
+            $toWardCode   = (string)($resolved['to_ward_code'] ?? '');
+
+            if ($toDistrictId <= 0 || $toWardCode === '') {
+                throw new \RuntimeException('Không xác định được quận/huyện hoặc phường/xã từ địa chỉ.');
+            }
+
+
             $fromDistrictId = (int) env('GHN_FROM_DISTRICT_ID');
-            $toDistrictId   = (int) $data['to_district_id'];
             $serviceId      = $ghn->getServiceId($fromDistrictId, $toDistrictId, 2); // Chuẩn
 
             $payload = [
                 'to_name'          => $data['ten_nguoi_nhan'],
                 'to_phone'         => $data['so_dien_thoai'],
                 'to_address'       => $data['dia_chi'],
-                'to_ward_code'     => $data['to_ward_code'],
-                'to_district_id'   => $toDistrictId,
+                'to_ward_code'     => $toWardCode,          // <<< từ resolver
+                'to_district_id'   => $toDistrictId,        // <<< từ resolver
 
                 'service_type_id'  => 2,
                 'service_id'       => $serviceId,

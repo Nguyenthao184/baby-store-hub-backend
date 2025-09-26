@@ -3,7 +3,6 @@
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\DanhMucController;
 use App\Http\Controllers\SanPhamController;
-use App\Http\Controllers\KhoController;
 use App\Http\Controllers\DonHangController;
 use App\Http\Controllers\GioHangController;
 use App\Http\Controllers\KhachHangController;
@@ -19,7 +18,7 @@ use App\Http\Controllers\DonMuaController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Cache;
-
+use Illuminate\Support\Facades\Log;
 
 // Auth routes
 Route::post('/auth/register', [AuthController::class, 'register']);
@@ -132,17 +131,20 @@ Route::middleware(['auth:sanctum','authRole:KhachHang'])->group(function () {
     Route::post('/checkout/dat-hang', [CheckoutController::class, 'datHang']);
     Route::get('/thanh-toan/{donhangid}/trang-thai', [PaymentController::class, 'status']);
     Route::post('/checkout/mua-ngay', [CheckoutController::class, 'muaNgay']);
-                 
 
     // Đơn mua (của khách)
     Route::post('/don-mua/{id}/cancel', [DonMuaController::class, 'cancelByCustomer']); // Khách hàng hủy đơn hàng
     Route::get('/don-mua',           [DonMuaController::class, 'index']);       // lọc + phân trang
     Route::get('/don-mua/{id}',      [DonMuaController::class, 'show']);        // xem chi tiết
     Route::post('/don-mua/{id}/reorder', [DonMuaController::class, 'reorder']); // mua lại
+    
+
 });
 // Webhook GHN (public)
 Route::post('/webhooks/ghn', [GhnWebhookController::class, 'handle']);
 Route::get('/vnpay/return', [CheckoutController::class, 'vnpayReturn']); 
 // Route::post('/momo_payment', [CheckoutController::class, 'momoPayment']);
-Route::match(['GET','POST'], '/momo/return', [CheckoutController::class, 'momoReturn'])->name('momo.return'); // public
-Route::match(['GET','POST'], '/momo/ipn',    [CheckoutController::class, 'momoIpn'])->name('momo.ipn');       // public
+Route::match(['GET','POST'], '/momo/return', [CheckoutController::class, 'momoReturn'])->name('momo.return'); 
+Route::match(['GET','POST'], '/momo/ipn',    [CheckoutController::class, 'momoIpn'])->name('momo.ipn');       
+Route::get('/orders/{id}', [CheckoutController::class, 'showById']);             
+

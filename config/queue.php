@@ -40,7 +40,7 @@ return [
             'table' => env('DB_QUEUE_TABLE', 'jobs'),
             'queue' => env('DB_QUEUE', 'default'),
             'retry_after' => env('DB_QUEUE_RETRY_AFTER', 90),
-            'after_commit' => false,
+            'after_commit' => true,
         ],
 
         'beanstalkd' => [
@@ -63,13 +63,21 @@ return [
             'after_commit' => false,
         ],
 
+        // 'redis' => [
+        //     'driver' => 'redis',
+        //     'connection' => env('REDIS_QUEUE_CONNECTION', 'default'),
+        //     'queue' => env('REDIS_QUEUE', 'default'),
+        //     'retry_after' => env('REDIS_QUEUE_RETRY_AFTER', 90),
+        //     'block_for' => null,
+        //     'after_commit' => false,
+        // ],
         'redis' => [
             'driver' => 'redis',
-            'connection' => env('REDIS_QUEUE_CONNECTION', 'default'),
-            'queue' => env('REDIS_QUEUE', 'default'),
-            'retry_after' => env('REDIS_QUEUE_RETRY_AFTER', 90),
+            'connection' => 'default',
+            'queue' => 'default',
+            'retry_after' => 90,
             'block_for' => null,
-            'after_commit' => false,
+            'after_commit' => true,
         ],
 
     ],

@@ -12,6 +12,8 @@ use App\Services\GioHangService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
+use App\Mail\OrderPaidMail;
+use Illuminate\Support\Facades\Mail;
 
 class ThanhToanObserver
 {
@@ -32,8 +34,11 @@ class ThanhToanObserver
         if (!$thanhToan->wasChanged('trang_thai') || $thanhToan->trang_thai !== 'DA_THANH_TOAN') {
             return;
         }
+            // 1) Khai báo biến ngoài scope để dùng sau commit
+        $donhangLocal = null;
+        $hoaDonLocal  = null;
 
-        DB::transaction(function () use ($thanhToan) {
+        DB::transaction(function () use ($thanhToan, &$donhangLocal, &$hoaDonLocal) {
             // Khóa đơn chống race
             $donhang = DonHang::where('id', $thanhToan->don_hang_id)->lockForUpdate()->first();
             if (!$donhang) {
@@ -96,7 +101,8 @@ class ThanhToanObserver
                         $sp->soLuongTon = (int)$sp->soLuongTon - (int)$ct->so_luong;
                         $sp->save();
                     }
-                }
+                } 
+                $hoaDonLocal = $hoaDon;
             }
 
             // Cập nhật trạng thái Đơn hàng
@@ -116,7 +122,34 @@ class ThanhToanObserver
                     ]);
                 }
             }
+              $donhangLocal = $donhang->fresh(['khachHang', 'thanhToan']);
         });
+
+       // ===== GỬI MAIL SAU KHI COMMIT =====
+    if ($donhangLocal) {
+        DB::afterCommit(function () use ($donhangLocal, $hoaDonLocal) {
+            try {
+                $items = ChiTietDonHang::where('don_hang_id', $donhangLocal->id)->get();
+                $fe    = rtrim(config('app.frontend_url'), '/');
+                $gw    = strtolower($donhangLocal->phuong_thuc_thanh_toan ?? 'cod');
+                $link  = $fe . '/orderSuccess?orderId=' . urlencode($donhangLocal->id) . '&gw=' . $gw;
+
+                // Lấy email KH (fallback mail.from để không mất mail khi thiếu)
+                $email = optional(KhachHang::find($donhangLocal->khach_hang_id))->email
+                      ?: config('mail.from.address');
+
+                // Nếu chưa dùng queue worker, dùng send() cho chắc
+                Mail::to($email)->send(new OrderPaidMail($donhangLocal, $hoaDonLocal, $items, $link));
+
+                Log::info('MAIL: sent OrderPaidMail', [
+                    'order_id' => $donhangLocal->id,
+                    'to'       => $email,
+                ]);
+            } catch (\Throwable $e) {
+                Log::error('MAIL: send failed', ['err' => $e->getMessage()]);
+            }
+        });
+    }
     }
 
     /**

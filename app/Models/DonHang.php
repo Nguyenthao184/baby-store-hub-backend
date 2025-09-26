@@ -59,5 +59,14 @@ class DonHang extends Model
     public function chiTietDonHang()
     {
         return $this->hasMany(ChiTietDonHang::class, 'don_hang_id', 'id');
+    } public function thanhToans()
+    {
+        return $this->hasMany(ThanhToan::class, 'don_hang_id', 'id');
+    }
+
+    // Quan hệ 1-1 “mới nhất” để đọc nhanh trạng thái thanh toán hiện tại
+    public function thanhToan()
+    {
+        return $this->hasOne(ThanhToan::class, 'don_hang_id', 'id')->latestOfMany();
     }
 }

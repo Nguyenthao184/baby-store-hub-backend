@@ -10,11 +10,13 @@ use App\Models\ChiTietDonHang;
 use Illuminate\Support\Facades\Log;
 use App\Http\Requests\Checkout\DatHangRequest;
 use App\Http\Requests\Checkout\MuaNgayRequest;
+use App\Mail\OrderPaidMail;
 use App\Models\KhachHang;
 use App\Services\GhnService;
 use App\Services\GioHangService;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
 
 class CheckoutController extends Controller
 {
@@ -88,9 +90,32 @@ class CheckoutController extends Controller
             'raw_return'   => $params,
         ]);
 
-        return $isSuccess
-            ? response()->json(['message' => 'Thanh toán thành công'], 200)
-            : response()->json(['message' => 'Thanh toán thất bại'], 400);
+
+        $fe = config('app.frontend_url');
+        return redirect()->away($fe . '/orderSuccess?orderId=' . urlencode($txnRef) . '&gw=vnpay');
+
+        $order = DonHang::with(['chiTiet', 'thanhToan', 'khachHang'])->find($txnRef);
+        $items = $order?->chiTiet ?? collect();
+        $invoice = null;
+
+        $fe   = rtrim(config('app.frontend_url'), '/');
+        $link = $fe . '/orderSuccess?orderId=' . urlencode($txnRef) . '&gw=vnpay';
+
+        // Ưu tiên email KH; nếu không có, tạm gửi về email shop để kiểm tra
+        $toEmail = $order?->khachHang?->email ?: config('mail.from.address');
+
+        try {
+            if ($toEmail) {
+                Mail::to($toEmail)->send(new OrderPaidMail($order, $invoice, $items, $link));
+            } else {
+                Log::warning('OrderPaidMail: thiếu email khách hàng', ['order_id' => $txnRef]);
+            }
+        } catch (\Throwable $e) {
+            Log::error('Gửi mail thất bại', ['error' => $e->getMessage()]);
+        }
+
+        // Redirect về FE
+        return redirect()->away($link);
     }
 
     private function buildVnpayUrl(DonHang $donhang): string
@@ -177,15 +202,15 @@ class CheckoutController extends Controller
         $extraData   = '';
 
         $raw = "accessKey={$accessKey}"
-             . "&amount={$amount}"
-             . "&extraData={$extraData}"
-             . "&ipnUrl={$ipnUrl}"
-             . "&orderId={$orderId}"
-             . "&orderInfo={$orderInfo}"
-             . "&partnerCode={$partnerCode}"
-             . "&redirectUrl={$redirectUrl}"
-             . "&requestId={$requestId}"
-             . "&requestType={$requestType}";
+            . "&amount={$amount}"
+            . "&extraData={$extraData}"
+            . "&ipnUrl={$ipnUrl}"
+            . "&orderId={$orderId}"
+            . "&orderInfo={$orderInfo}"
+            . "&partnerCode={$partnerCode}"
+            . "&redirectUrl={$redirectUrl}"
+            . "&requestId={$requestId}"
+            . "&requestType={$requestType}";
 
         $signature = hash_hmac('sha256', $raw, $secretKey);
 
@@ -251,7 +276,29 @@ class CheckoutController extends Controller
         }
 
         $fe = config('app.frontend_url');
-        return redirect()->away($fe . '/checkout/result?orderId=' . urlencode($orderId) . '&gw=momo');
+        return redirect()->away($fe . '/orderSuccess?orderId=' . urlencode($orderId) . '&gw=momo');
+         $order = DonHang::with(['chiTiet', 'thanhToan', 'khachHang'])->find($txnRef);
+        $items = $order?->chiTiet ?? collect();
+        $invoice = null;
+
+        $fe   = rtrim(config('app.frontend_url'), '/');
+        $link = $fe . '/orderSuccess?orderId=' . urlencode($txnRef) . '&gw=momo';
+
+        // Ưu tiên email KH; nếu không có, tạm gửi về email shop để kiểm tra
+        $toEmail = $order?->khachHang?->email ?: config('mail.from.address');
+
+        try {
+            if ($toEmail) {
+                Mail::to($toEmail)->send(new OrderPaidMail($order, $invoice, $items, $link));
+            } else {
+                Log::warning('OrderPaidMail: thiếu email khách hàng', ['order_id' => $txnRef]);
+            }
+        } catch (\Throwable $e) {
+            Log::error('Gửi mail thất bại', ['error' => $e->getMessage()]);
+        }
+
+        // Redirect về FE
+        return redirect()->away($link);
     }
 
     public function momoIpn(Request $request)
@@ -377,7 +424,7 @@ class CheckoutController extends Controller
         // “Mua ngay” không có weight trong bảng -> mặc định 500g mỗi sp
         $totalWeight = max(500, (int) (500 * $soLuong));
 
-        $method    = $donhang->phuong_thuc_thanh_toan; 
+        $method    = $donhang->phuong_thuc_thanh_toan;
         $codAmount = ($method === 'cod') ? (int) round($donhang->tong_thanh_toan) : 0;
 
         $payload = [
@@ -394,7 +441,7 @@ class CheckoutController extends Controller
 
             'weight'           => $totalWeight,
             'cod_amount'       => $codAmount,
-            'client_order_code'=> $donhang->ma_don_hang,
+            'client_order_code' => $donhang->ma_don_hang,
 
             'items' => [[
                 'name'     => $sp->tenSanPham,
@@ -406,7 +453,7 @@ class CheckoutController extends Controller
 
         $res = $ghn->createOrder($payload);
         if (($res['code'] ?? 0) !== 200) {
-            return response()->json(['message' => 'GHN tạo đơn thất bại: '.($res['message'] ?? 'Unknown')], 502);
+            return response()->json(['message' => 'GHN tạo đơn thất bại: ' . ($res['message'] ?? 'Unknown')], 502);
         }
 
         $orderCode = data_get($res, 'data.order_code');
@@ -464,7 +511,7 @@ class CheckoutController extends Controller
 
             // 3) Xác định phương thức & trạng thái ban đầu
             $method = strtolower((string)$data['phuong_thuc_thanh_toan']); // 'vnpay' | 'momo' | 'cod'
-            if (!in_array($method, ['vnpay','momo','cod'], true)) {
+            if (!in_array($method, ['vnpay', 'momo', 'cod'], true)) {
                 return response()->json(['message' => 'Phương thức thanh toán không hợp lệ'], 422);
             }
             $trangThaiDon = $method === 'cod' ? 'CHO_XU_LY' : 'CHO_THANH_TOAN';
@@ -552,9 +599,9 @@ class CheckoutController extends Controller
 
                 'weight'           => (int) $totalWeight,
                 'cod_amount'       => $codAmount,
-                'client_order_code'=> $donhang->ma_don_hang,
+                'client_order_code' => $donhang->ma_don_hang,
 
-                'items' => collect($items)->map(fn ($i) => [
+                'items' => collect($items)->map(fn($i) => [
                     'name'     => $i['ten'],
                     'quantity' => (int)($i['soLuong'] ?? 1),
                     'price'    => (int) round($i['gia'] ?? 0),
@@ -603,5 +650,19 @@ class CheckoutController extends Controller
             ], 201);
         });
     }
+    public function showById(string $id)
+    {
+        $order = DonHang::with(['chiTietDonHang', 'thanhToan' => fn($q) => $q->latest()])
+            ->where('id', $id)
+            ->firstOrFail();
 
+        return response()->json([
+            'id'          => $order->id,
+            'ma_don_hang' => $order->ma_don_hang,
+            'status'      => $order->trang_thai,
+            'total'       => $order->tong_thanh_toan,
+            'paid'        => optional($order->thanhToan)->trang_thai === 'DA_THANH_TOAN',
+            'gateway'     => optional($order->thanhToan)->kenh,
+        ]);
+    }
 }

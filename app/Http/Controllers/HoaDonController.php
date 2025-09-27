@@ -247,6 +247,12 @@ class HoaDonController extends Controller
                 ],
                 'trangThai' => $donHang->trang_thai,
                 'ghiChu'    => $donHang->ghi_chu,
+
+                'vanChuyen' => [
+                    'donVi'        => $donHang->don_vi_van_chuyen,           // ví dụ: GHN, GHTK | null nếu offline
+                    'maVanDon'     => $donHang->ma_van_don,                   // mã vận đơn | null nếu offline
+                    'phiVanChuyen' => (float)($donHang->phi_van_chuyen ?? 0), // 0 nếu offline
+                ],
                 'sanPhams'  => $sanPhams
             ]
         ]);

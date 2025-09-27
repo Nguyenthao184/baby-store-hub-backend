@@ -4,9 +4,10 @@ namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Schema; 
 use App\Models\SanPham;
 use App\Models\DonHang;
-use Illuminate\Support\Str;
 
 class ChiTietDonHangSeeder extends Seeder
 {
@@ -23,6 +24,7 @@ class ChiTietDonHangSeeder extends Seeder
         DB::table('chitietdonhang')->delete();
 
         $records = [];
+        $hasFlashSaleCol = Schema::hasColumn('chitietdonhang', 'flash_sale');
 
         foreach ($donHangs as $donHang) {
             // Lấy ngẫu nhiên 1..3 sản phẩm
@@ -35,36 +37,52 @@ class ChiTietDonHangSeeder extends Seeder
             foreach ($sanPhamsRandom as $sp) {
                 $soLuong = rand(1, 5);
                 $giaGoc  = (float) $sp->giaBan;
-                $vat     = 8.00; // <<== VAT cố định 8%
-                $giam_gia = rand(0, 20000);
 
-                // Giá sau VAT
+                // 1) VAT trước: giá sau VAT
+                $vat = 8.00; 
                 $giaSauVat = round($giaGoc * (1 + $vat / 100), 2);
 
+                // 2) Flash sale sau VAT
+                $flashSale = 0.0; // mặc định 0%
+                if (isset($sp->flash_sale) && is_numeric($sp->flash_sale)) {
+                    $flashSale = (float) $sp->flash_sale; // kỳ vọng 0..1
+                }
+                $flashSale = max(0.0, min(0.9, $flashSale)); // clamp 0..90%
+                $giaSauFlash = round($giaSauVat * (1 - $flashSale), 2);
 
-                // Đơn giá sau khi trừ giảm giá (không âm)
-                $donGiaSauGiam = max(0, round($giaSauVat - $giam_gia, 2));
+                // 3) Giảm giá dòng (voucher theo dòng) 0..20k
+                $giam_gia = rand(0, 20000);
 
-                // Thành tiền = đơn giá sau giảm * số lượng
+                // 4) Đơn giá sau giảm (không âm) — TRÊN GIÁ SAU FLASH
+                $donGiaSauGiam = max(0, round($giaSauFlash - $giam_gia, 2));
+
+                // 5) Thành tiền = đơn giá sau giảm * số lượng
                 $thanhTien = round($donGiaSauGiam * $soLuong, 2);
 
-                $records[] = [
+                // Lưu snapshot
+                $row = [
                     'id'           => (string) Str::uuid(),
                     'don_hang_id'  => $donHang->id,
                     'san_pham_id'  => $sp->id,
                     'ten_san_pham' => $sp->tenSanPham,
-                    'gia'          => $giaSauVat,   
-                    'vat'          => $vat,                // VAT cố định
-                    'giam_gia'     => $giam_gia,
+                    'gia'          => $giaSauFlash,   // ✅ đơn giá sau VAT & flash (trước giảm)
+                    'vat'          => $vat,           // % VAT đã áp dụng trước đó
+                    'giam_gia'     => $giam_gia,      // giảm thêm theo dòng (VND)
                     'so_luong'     => $soLuong,
-                    'thanh_tien'   => $thanhTien,    // thành tiền đã VAT
+                    'thanh_tien'   => $thanhTien,     // đã VAT + flash + trừ giảm, nhân SL
                 ];
+
+                if ($hasFlashSaleCol) {
+                    $row['flash_sale'] = $flashSale;  // 0..1
+                }
+
+                $records[] = $row;
             }
         }
 
         DB::table('chitietdonhang')->insert($records);
 
-        // Lấy tổng thành_tien theo don_hang_id
+        // Tổng hợp lại DonHang: tam_tinh & tong_thanh_toan
         $tongTheoDon = DB::table('chitietdonhang')
             ->select('don_hang_id', DB::raw('SUM(thanh_tien) as tam_tinh'))
             ->groupBy('don_hang_id')
@@ -79,7 +97,7 @@ class ChiTietDonHangSeeder extends Seeder
             $phiVanChuyen  = (float) ($row->phi_van_chuyen ?? 0);
 
             $tongThanhToan = round($tamTinh - $giamVoucher - $giamDiem + $phiVanChuyen, 2);
-            $tongThanhToan = max(0, $tongThanhToan); // không âm
+            $tongThanhToan = max(0, $tongThanhToan);
 
             DB::table('donhang')
                 ->where('id', $donHangId)

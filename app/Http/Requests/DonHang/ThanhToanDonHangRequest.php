@@ -30,6 +30,8 @@ class ThanhToanDonHangRequest extends FormRequest
             'sanPhams.*.soLuong' => 'required|integer|min:1',
             'sanPhams.*.giaBan' => 'required|numeric|min:0',
             'sanPhams.*.giamGia' => 'nullable|numeric|min:0',
+            'giamVoucher'    => ['nullable', 'numeric', 'min:0'],
+            'giamDiem'       => ['nullable', 'numeric', 'min:0'],
         ];
     }
 

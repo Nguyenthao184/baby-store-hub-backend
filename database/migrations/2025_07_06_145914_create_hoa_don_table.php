@@ -19,6 +19,7 @@ return new class extends Migration
             $table->dateTime('ngay_xuat');
             $table->decimal('tong_tien_hang', 15, 2);
             $table->decimal('tong_vat', 15, 2)->default(0);
+            $table->decimal('giam_flash_sale', 15, 2)->default(0);
             $table->decimal('giam_voucher', 15, 2)->default(0);
             $table->decimal('giam_diem', 15, 2)->default(0);
             $table->decimal('phi_van_chuyen', 15, 2)->default(0);

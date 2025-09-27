@@ -21,6 +21,7 @@ class HoaDon extends Model
         'ngay_xuat',
         'tong_tien_hang',
         'tong_vat',
+        'giam_flash_sale',
         'giam_voucher',
         'giam_diem',
         'phi_van_chuyen',

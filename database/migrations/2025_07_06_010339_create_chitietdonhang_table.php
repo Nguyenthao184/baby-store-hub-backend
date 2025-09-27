@@ -19,7 +19,8 @@ return new class extends Migration
             // Snapshot giá tại thời điểm đặt
             $table->string('ten_san_pham', 255);
             $table->decimal('gia', 15, 2);                    // giá gốc
-            $table->decimal('vat', 5, 2)->default(0);         // % VAT lúc đặt
+            $table->decimal('vat', 5, 2)->default(0.00);
+            $table->decimal('flash_sale', 5, 2)->default(0.00);         // % VAT lúc đặt
             $table->decimal('giam_gia', 15, 2)->default(0);   // số tiền giảm riêng item (nếu có)
             $table->unsignedInteger('so_luong');
 
@@ -29,6 +30,8 @@ return new class extends Migration
             $table->timestamps();
 
             $table->foreign('don_hang_id')->references('id')->on('donhang')->cascadeOnDelete();
+            $table->foreign('san_pham_id')->references('id')->on('SanPham')->cascadeOnUpdate()->restrictOnDelete();
+
 
         });
     }

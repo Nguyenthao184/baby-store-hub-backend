@@ -37,7 +37,7 @@ class DonHangSeeder extends Seeder
                     // Chỉ 3 phương thức offline: cod/bank/card (map sang enum DB)
                     $offlineMethod  = ['cod', 'bank', 'card'][rand(0, 2)];
                     $mapOffline     = [
-                        'cod'  => 'cod',
+                        'cod'  => 'cash',
                         'bank' => 'bank_transfer',
                         'card' => 'credit_card',
                     ];

@@ -26,7 +26,6 @@ class DonHangSeeder extends Seeder
             $soDonHang = rand(1, 3);
 
             for ($i = 0; $i < $soDonHang; $i++) {
-                $tamTinh        = rand(100_000, 500_000);
                 $giamVoucher    = rand(0, 50_000);
                 $giamDiem       = rand(0, 20_000);
                 $isOffline      = (bool) rand(0, 1); // true: offline, false: online
@@ -34,7 +33,6 @@ class DonHangSeeder extends Seeder
                 if ($isOffline) {
                     // ================= OFFLINE =================
                     $phiVanChuyen   = 0;
-                    $tongThanhToan  = $tamTinh - $giamVoucher - $giamDiem + $phiVanChuyen;
 
                     // Chỉ 3 phương thức offline: cod/bank/card (map sang enum DB)
                     $offlineMethod  = ['cod', 'bank', 'card'][rand(0, 2)];
@@ -52,11 +50,11 @@ class DonHangSeeder extends Seeder
                         'so_dien_thoai'          => $kh->sdt,
                         'dia_chi'                => null,
                         'ghi_chu'                => 'Thanh toán tại quầy',
-                        'tam_tinh'               => $tamTinh,
+                        'tam_tinh'               => 0,
                         'giam_voucher'           => $giamVoucher,
                         'giam_diem'              => $giamDiem,
                         'phi_van_chuyen'         => $phiVanChuyen,   // 0
-                        'tong_thanh_toan'        => $tongThanhToan,
+                        'tong_thanh_toan'        => 0,
                         'voucher_id'             => null,
                         'don_vi_van_chuyen'      => null,            // offline: không ship
                         'ma_van_don'             => null,            // offline: không ship
@@ -68,7 +66,6 @@ class DonHangSeeder extends Seeder
                 } else {
                     // ================= ONLINE =================
                     $phiVanChuyen   = rand(20_000, 50_000);
-                    $tongThanhToan  = $tamTinh - $giamVoucher - $giamDiem + $phiVanChuyen;
 
                     // Online: cod / vnpay / momo
                     $onlineMethod   = ['cod', 'vnpay', 'momo'][rand(0, 2)];
@@ -91,11 +88,11 @@ class DonHangSeeder extends Seeder
                         'so_dien_thoai'          => $kh->sdt,
                         'dia_chi'                => $kh->diaChi ?? 'Chưa có địa chỉ', // <-- luôn lấy từ KH
                         'ghi_chu'                => rand(0, 1) ? 'Giao hàng nhanh' : null,
-                        'tam_tinh'               => $tamTinh,
+                        'tam_tinh'               => 0,
                         'giam_voucher'           => $giamVoucher,
                         'giam_diem'              => $giamDiem,
                         'phi_van_chuyen'         => $phiVanChuyen,
-                        'tong_thanh_toan'        => $tongThanhToan,
+                        'tong_thanh_toan'        => 0,
                         'voucher_id'             => rand(0, 1) ? (string) Str::uuid() : null,
                         'don_vi_van_chuyen'      => $donViVC,
                         'ma_van_don'             => $maVD,                // <-- luôn có mã vận đơn

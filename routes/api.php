@@ -134,11 +134,8 @@ Route::middleware(['auth:sanctum','authRole:KhachHang'])->group(function () {
 
     // Đơn mua (của khách)
     Route::post('/don-mua/{id}/cancel', [DonMuaController::class, 'cancelByCustomer']); // Khách hàng hủy đơn hàng
-    Route::get('/don-mua',           [DonMuaController::class, 'index']);       // lọc + phân trang
-    Route::get('/don-mua/{id}',      [DonMuaController::class, 'show']);        // xem chi tiết
+    Route::get('/don-mua',           [DonMuaController::class, 'index']);       // lọc 
     Route::post('/don-mua/{id}/reorder', [DonMuaController::class, 'reorder']); // mua lại
-    
-
 });
 // Webhook GHN (public)
 Route::post('/webhooks/ghn', [GhnWebhookController::class, 'handle']);

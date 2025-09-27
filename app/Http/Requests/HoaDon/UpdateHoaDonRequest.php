@@ -74,14 +74,14 @@ class UpdateHoaDonRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'tongTienHang'        => ['required','numeric','min:0'],
+            //'tongTienHang'        => ['required','numeric','min:0'],
             'giamVoucher'         => ['nullable','numeric','min:0'],
             'giamDiem'            => ['nullable','numeric','min:0'],
             'thueVAT'             => ['nullable','numeric','min:0'],
-            'tongThanhToan'       => ['required','numeric','min:0'],
+            //'tongThanhToan'       => ['required','numeric','min:0'],
 
             // Offline: chỉ chấp nhận các phương thức nội bộ được cấu hình
-            'phuongThucThanhToan' => ['required','string', Rule::in(['cod','momo','vnpay'])],
+            //'phuongThucThanhToan' => ['required','string', Rule::in(['cod','momo','vnpay'])],
 
             'ghiChu'              => ['nullable','string'],
             'trangThai'           => ['nullable','string'],
@@ -105,11 +105,11 @@ class UpdateHoaDonRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'tongTienHang.required' => 'Vui lòng nhập tổng tiền hàng.',
-            'tongTienHang.numeric'  => 'Tổng tiền hàng phải là số.',
-            'tongThanhToan.required'=> 'Vui lòng nhập tổng thanh toán.',
-            'phuongThucThanhToan.required' => 'Vui lòng chọn phương thức thanh toán.',
-            'phuongThucThanhToan.in'       => 'Phương thức thanh toán không hợp lệ.',
+            //'tongTienHang.required' => 'Vui lòng nhập tổng tiền hàng.',
+            //'tongTienHang.numeric'  => 'Tổng tiền hàng phải là số.',
+            //'tongThanhToan.required'=> 'Vui lòng nhập tổng thanh toán.',
+            //'phuongThucThanhToan.required' => 'Vui lòng chọn phương thức thanh toán.',
+            //'phuongThucThanhToan.in'       => 'Phương thức thanh toán không hợp lệ.',
             'phiVanChuyen.prohibited'      => 'Giao dịch offline không cho phép phí vận chuyển.',
             'sanPhams.*.id.required_with'  => 'Thiếu mã sản phẩm trong danh sách cập nhật.',
             'sanPhams.*.soLuong.required_with' => 'Thiếu số lượng cho sản phẩm.',

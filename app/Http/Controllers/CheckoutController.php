@@ -363,9 +363,8 @@ class CheckoutController extends Controller
 
         // Phí ship cố định theo yêu cầu
         $phiVC  = 20000.0;
-        $phiCOD = 0.0;
 
-        $tongThanhToan = round($truocVAT - $giamVoucher - $giamDiem + $phiVC + $phiCOD, 2);
+        $tongThanhToan = round($truocVAT - $giamVoucher - $giamDiem + $phiVC, 2);
 
         // 3) Tạo Đơn hàng + Chi tiết
         $donhang = DonHang::create([
@@ -505,9 +504,8 @@ class CheckoutController extends Controller
             $giamVoucher  = (float)($data['giam_voucher']   ?? 0);
             $giamDiem     = (float)($data['giam_diem']      ?? 0);
             $phiVC        = 20000.0;                         // phí ship cố định theo yêu cầu
-            $phiCOD       = (float)($data['phi_cod']        ?? 0);
 
-            $tongThanhToan = round($tamTinh - $giamVoucher - $giamDiem + $phiVC + $phiCOD, 2);
+            $tongThanhToan = round($tamTinh - $giamVoucher - $giamDiem + $phiVC, 2);
 
             // 3) Xác định phương thức & trạng thái ban đầu
             $method = strtolower((string)$data['phuong_thuc_thanh_toan']); // 'vnpay' | 'momo' | 'cod'

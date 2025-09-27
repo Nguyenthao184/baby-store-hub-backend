@@ -22,6 +22,7 @@ class ChiTietDonHang extends Model
         'san_pham_id',
         'ten_san_pham',
         'gia',
+        'flash_sale',
         'vat',
         'giam_gia',
         'so_luong',

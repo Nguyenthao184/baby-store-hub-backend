@@ -32,11 +32,11 @@ class GhnWebhookController extends Controller
         // 3) Map các trạng thái GHN KHÁC 'delivered' sang trạng thái nội bộ
         //    (Không ghi đè khi 'delivered' vì xử lý riêng ở bước 4)
         $map = [
-            'ready_to_pick' => 'DANG_XU_LY',
-            'picking'       => 'DANG_XU_LY',
-            'storing'       => 'DANG_XU_LY',
-            'transporting'  => 'DANG_VAN_CHUYEN',
-            'delivering'    => 'DANG_VAN_CHUYEN',
+            'ready_to_pick' => 'CHO_XU_LY',
+            'picking'       => 'CHO_XU_LY',
+            'storing'       => 'CHO_XU_LY',
+            'transporting'  => 'DANG_GIAO_HANG',
+            'delivering'    => 'DANG_GIAO_HANG',
             // 'delivered'    => 'DA_GIAO_HANG', // xử lý riêng ở dưới
         ];
         if ($status !== '' && isset($map[$status])) {

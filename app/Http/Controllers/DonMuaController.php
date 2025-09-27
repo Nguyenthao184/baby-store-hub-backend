@@ -14,115 +14,103 @@ class DonMuaController extends Controller
 {
     public function __construct(private GioHangService $gioHang) {}
 
-    /**
-     * GET /don-mua
-     * Lọc đơn mua theo trạng thái & khoảng ngày.
-     * Query:
-     *  - status: CHO_XU_LY | CHO_LAY_HANG | DANG_GIAO_HANG | THANH_CONG | HUY | (bỏ trống = tất cả)
-     *  - date: YYYY-MM-DD (lọc đúng 1 ngày)
-     *  - from, to: YYYY-MM-DD (lọc khoảng ngày [from..to])
-     *  - page, per_page
-     */
     public function index(Request $request)
     {
-        $userId = $request->user()->id;
+        // Lấy user & map sang khách hàng (giống hệt datHang)
+        $userId = $request->user()->id ?? null;
+        if (!$userId) {
+            return response()->json(['message' => 'Unauthenticated'], 401);
+        }
 
         $kh = KhachHang::where('taiKhoan_id', $userId)->first();
-        if (!$kh) {
+        $khachHangId = $kh?->id;
+        if (!$khachHangId) {
             return response()->json(['message' => 'Không tìm thấy khách hàng'], 404);
         }
 
-        $status   = $request->query('status');  // trạng thái
-        $date     = $request->query('date');    // YYYY-MM-DD
-        $from     = $request->query('from');    // YYYY-MM-DD
-        $to       = $request->query('to');      // YYYY-MM-DD
+        // Bộ lọc tuỳ chọn
+        $trangThai = $request->input('trang_thai'); // CHO_XU_LY|...|DA_HUY
+        $dateFrom  = $request->input('from');       // YYYY-MM-DD
+        $dateTo    = $request->input('to');         // YYYY-MM-DD
 
-        $allowedStatuses = ['CHO_THANH_TOAN','CHO_XU_LY','CHO_LAY_HANG','DANG_GIAO_HANG','THANH_CONG','HUY'];
-
-        $q = DonHang::query()
-            ->where('khach_hang_id', $kh->id)
+        // Lấy đơn hàng + chi tiết (snapshot). Không cần join sản phẩm để tránh lệch giá.
+        $q = DonHang::with(['chiTietDonHang' /* ->select([...]) nếu muốn */])
+            ->where('khach_hang_id', $khachHangId)
             ->orderByDesc('ngay_tao');
 
-        if ($status && in_array($status, $allowedStatuses, true)) {
-            $q->where('trang_thai', $status);
-        }
+        if ($trangThai) $q->where('trang_thai', $trangThai);
+        if ($dateFrom)  $q->whereDate('ngay_tao', '>=', $dateFrom);
+        if ($dateTo)    $q->whereDate('ngay_tao', '<=', $dateTo);
 
-        if ($date) {
-            $q->whereDate('ngay_tao', $date);
-        }
+        $donHangs = $q->get();
 
-        if ($from && $to) {
-            $q->whereDate('ngay_tao', '>=', $from)
-            ->whereDate('ngay_tao', '<=', $to);
-        }
+        $data = $donHangs->map(function ($don) {
+            $items = $don->chiTietDonHang->map(function ($ct) {
+                $giaGoc      = (float)($ct->gia ?? 0);      // snapshot giá lúc mua (chưa VAT)
+                $vatPercent  = (float)($ct->vat ?? 0);
+                $soLuong     = (int)($ct->so_luong ?? 1);
+                $giaCoVAT    = round($giaGoc * (1 + $vatPercent/100), 2);
+                $thanhTienSP = round($giaCoVAT * $soLuong, 2); // thành tiền cho dòng
 
-        $data = $q->get();
+                return [
+                    'san_pham_id'   => $ct->san_pham_id,
+                    'ten_san_pham'  => $ct->ten_san_pham,
+                    'so_luong'      => $soLuong,
+                    'gia_goc'       => $giaGoc,
+                    'vat_percent'   => $vatPercent,
+                    'gia_co_vat'    => $giaCoVAT,     // giá 1 sp đã gồm VAT
+                    'thanh_tien'    => $thanhTienSP,  // giá VAT × số lượng
+                    // nếu bạn đã lưu sẵn $ct->thanh_tien là VAT×SL, có thể trả thêm để tham chiếu
+                    'thanh_tien_snapshot' => (float)($ct->thanh_tien ?? 0),
+                ];
+            });
 
-        $result = $data->map(function (DonHang $d) {
+            $tongHangTinhLai = (float)$items->sum('thanh_tien');
+
             return [
-                'id'              => $d->id,
-                'ma_don_hang'     => $d->ma_don_hang,
-                'trang_thai'      => $d->trang_thai,
-                'ngay_tao'        => $d->ngay_tao,
-                'tong_thanh_toan' => $d->tong_thanh_toan,
-                'so_san_pham'     => ChiTietDonHang::where('don_hang_id', $d->id)->sum('so_luong'),
-                'ma_van_don'      => $d->ma_van_don,
-                'don_vi_vc'       => $d->don_vi_van_chuyen,
+                'id'                      => $don->id,
+                'ma_don_hang'             => $don->ma_don_hang,
+                'khach_hang_id'           => $don->khach_hang_id,
+
+                'ten_nguoi_nhan'          => $don->ten_nguoi_nhan,
+                'so_dien_thoai'           => $don->so_dien_thoai,
+                'dia_chi'                 => $don->dia_chi,
+                'ghi_chu'                 => $don->ghi_chu,
+
+                'tam_tinh'                => (float)$don->tam_tinh,
+                'giam_voucher'            => (float)$don->giam_voucher,
+                'giam_diem'               => (float)$don->giam_diem,
+                'phi_van_chuyen'          => (float)$don->phi_van_chuyen,
+
+                // Tổng tiền theo snapshot trong bảng donhang
+                'tong_thanh_toan'         => (float)$don->tong_thanh_toan,
+
+                // Tổng tiền hàng tính lại từ chi tiết (để FE hiển thị dòng “Thành tiền”)
+                'tong_hang_tinh_lai'      => $tongHangTinhLai,
+
+                'voucher_id'              => $don->voucher_id,
+                'don_vi_van_chuyen'       => $don->don_vi_van_chuyen,
+                'ma_van_don'              => $don->ma_van_don,
+
+                'trang_thai'              => $don->trang_thai,
+                'phuong_thuc_thanh_toan'  => $don->phuong_thuc_thanh_toan,
+
+                'ngay_tao'                => $don->ngay_tao,
+                'ngay_cap_nhat'           => $don->ngay_cap_nhat,
+
+                'san_pham'                => $items,
             ];
         });
 
-        return response()->json($result);
-    }
-
-
-    /**
-     * GET /don-mua/{id}
-     * Xem chi tiết 1 đơn hàng của chính khách.
-     */
-    public function show(Request $request, string $id)
-    {
-        $userId = $request->user()->id;
-
-        $kh = KhachHang::where('taiKhoan_id', $userId)->first();
-        if (!$kh) return response()->json(['message' => 'Không tìm thấy khách hàng'], 404);
-
-        $don = DonHang::where('id', $id)
-            ->where('khach_hang_id', $kh->id)
-            ->first();
-
-        if (!$don) return response()->json(['message' => 'Không tìm thấy đơn hàng'], 404);
-
-        $items = ChiTietDonHang::where('don_hang_id', $don->id)->get(['san_pham_id','ten_san_pham','gia','vat','giam_gia','so_luong','thanh_tien']);
-
         return response()->json([
-            'id'           => $don->id,
-            'ma_don_hang'  => $don->ma_don_hang,
-            'trang_thai'   => $don->trang_thai,
-            'phuong_thuc'  => $don->phuong_thuc_thanh_toan,
-            'ngay_tao'     => $don->ngay_tao,
-            'tong_tien_hang'  => $don->tam_tinh,
-            'giam_voucher'    => $don->giam_voucher,
-            'giam_diem'       => $don->giam_diem,
-            'phi_van_chuyen'  => $don->phi_van_chuyen,
-            'tong_thanh_toan' => $don->tong_thanh_toan,
-            'nguoi_nhan'   => [
-                'ten'   => $don->ten_nguoi_nhan,
-                'sdt'   => $don->so_dien_thoai,
-                'dia_chi' => $don->dia_chi,
+            'data' => $data,
+            'summary' => [
+                'so_don'        => $data->count(),
+                'tong_tat_ca'   => (float)$data->sum('tong_thanh_toan'), // theo snapshot đơn hàng
             ],
-            'van_don' => [
-                'don_vi' => $don->don_vi_van_chuyen,
-                'ma_van_don' => $don->ma_van_don,
-            ],
-            'items' => $items,
-        ]);
+        ], 200);
     }
 
-    /**
-     * POST /don-mua/{id}/reorder
-     * Mua lại: đưa toàn bộ item của đơn cũ vào giỏ hiện tại của user.
-     * - Mặc định cộng dồn số lượng (tùy GioHangService của bạn).
-     */
     public function reorder(Request $request, string $id)
     {
         $userId = $request->user()->id;

@@ -196,53 +196,191 @@ class DonHangController extends Controller
         }
     }
 
-    public function moveToShipping(Request $request, string $id)
+    public function moveToReadyForPickup(Request $request, string $id)
     {
-        $request->validate([
-            'ghi_chu' => ['nullable','string','max:500'],
-        ]);
-
         return DB::transaction(function () use ($id, $request) {
-            // Khoá bản ghi để tránh race
-            $don = DonHang::lockForUpdate()->find($id);
+            $don = DonHang::lockForUpdate()
+                ->with(['chiTietDonHang', 'khachHang'])
+                ->find($id);
+
             if (!$don) {
                 return response()->json(['message' => 'Không tìm thấy đơn hàng'], 404);
             }
 
             if ($don->trang_thai !== 'CHO_XU_LY') {
                 return response()->json([
-                    'message' => 'Chỉ chuyển trạng thái từ CHO_XU_LY sang DANG_GIAO_HANG',
+                    'message' => 'Chỉ có thể chuyển trạng thái từ CHO_XU_LY sang CHO_LAY_HANG',
                     'current' => $don->trang_thai,
                 ], 422);
             }
 
-            // Khuyến nghị: phải có mã vận đơn trước khi giao (bạn có thể bỏ check này nếu không cần)
-            if (empty($don->ma_van_don)) {
+            if ($don->chiTietDonHang->isEmpty()) {
                 return response()->json([
-                    'message' => 'Chưa có mã vận đơn. Vui lòng tạo vận đơn trước khi chuyển sang DANG_GIAO_HANG.',
+                    'message' => 'Không thể tạo hóa đơn vì đơn hàng không có sản phẩm.'
                 ], 422);
             }
 
-            $don->update([
-                'trang_thai'    => 'DANG_GIAO_HANG',
-                'ngay_cap_nhat' => now(),
-            ]);
+            // Tính tổng tiền hàng (đã VAT, đã trừ flash)
+            $tongTienHang = $don->chiTietDonHang->sum(function ($ct) {
+                $gia = (float) $ct->gia;             // đã VAT, chưa flash
+                $flash = (float) ($ct->flash_sale ?? 0);
+                $qty = (int) $ct->so_luong;
 
-            Log::info('Admin chuyển trạng thái đơn sang DANG_GIAO_HANG', [
-                'don_hang_id' => $don->id,
-                'by'          => auth()->id(),
-                'ghi_chu'     => $request->input('ghi_chu'),
+                $giaSauFlash = $gia * (1 - $flash);  // giá đã VAT sau flash
+                return round($giaSauFlash * $qty, 2);
+            });
+
+            // Tổng VAT thực tế
+            $tongVAT = $don->chiTietDonHang->sum(function ($ct) {
+                $gia = (float) $ct->gia;
+                $vat = (float) $ct->vat;
+                $qty = (int) $ct->so_luong;
+
+                return round(($gia * $vat / (100 + $vat)) * $qty, 2);
+            });
+
+            // Tổng giảm flash sale
+            $giamFlashSale = $don->chiTietDonHang->sum(function ($ct) {
+                $gia = (float) $ct->gia;
+                $flash = (float) ($ct->flash_sale ?? 0);
+                $qty = (int) $ct->so_luong;
+
+                return round(($gia * $flash) * $qty, 2);
+            });
+
+            // Tổng giảm giá khác
+            $giamVoucher = (float) ($don->giam_voucher ?? 0);
+            $giamDiem    = (float) ($don->giam_diem ?? 0);
+            $phiVanChuyen = (float) ($don->phi_van_chuyen ?? 0);
+
+            // Tổng thanh toán cuối
+            $tongThanhToan = $tongTienHang - $giamVoucher - $giamDiem + $phiVanChuyen;
+
+            // Tạo hoặc cập nhật hóa đơn
+            $hoaDon = HoaDon::where('don_hang_id', $don->id)->first();
+            if (!$hoaDon) {
+                $maHoaDon = 'HD-' . now()->year . '-' . str_pad(rand(1, 999999), 6, '0', STR_PAD_LEFT);
+
+                $hoaDon = HoaDon::create([
+                    'id'                      => (string) Str::uuid(),
+                    'ma_hoa_don'             => $maHoaDon,
+                    'don_hang_id'            => $don->id,
+                    'ngay_xuat'              => now(),
+                    'tong_tien_hang'         => round($tongTienHang, 2),
+                    'tong_vat'               => round($tongVAT, 2),
+                    'giam_flash_sale'        => round($giamFlashSale, 2),
+                    'giam_voucher'           => round($giamVoucher, 2),
+                    'giam_diem'              => round($giamDiem, 2),
+                    'phi_van_chuyen'         => round($phiVanChuyen, 2),
+                    'tong_thanh_toan'        => round($tongThanhToan, 2),
+                    'phuong_thuc_thanh_toan' => $don->phuong_thuc_thanh_toan,
+                ]);
+            } else {
+                $hoaDon->update([
+                    'tong_tien_hang'   => round($tongTienHang, 2),
+                    'tong_vat'         => round($tongVAT, 2),
+                    'giam_flash_sale'  => round($giamFlashSale, 2),
+                    'tong_thanh_toan'  => round($tongThanhToan, 2),
+                ]);
+            }
+
+            // Cập nhật trạng thái đơn hàng
+            $don->update([
+                'trang_thai'    => 'CHO_LAY_HANG',
+                'ngay_cap_nhat' => now(),
+                'ghi_chu'       => $request->input('ghi_chu', $don->ghi_chu),
+                'tong_thanh_toan' => $tongThanhToan, // đồng bộ luôn tổng tiền
             ]);
 
             return response()->json([
-                'message' => 'Đã chuyển trạng thái đơn sang DANG_GIAO_HANG',
+                'message' => 'Đơn hàng đã chuyển sang CHO_LAY_HANG và hóa đơn đã được tạo.',
                 'don_hang' => [
-                    'id'           => $don->id,
-                    'ma_don_hang'  => $don->ma_don_hang,
-                    'trang_thai'   => $don->trang_thai,
-                    'ma_van_don'   => $don->ma_van_don,
+                    'id'                => $don->id,
+                    'ma_don_hang'       => $don->ma_don_hang,
+                    'khach_hang'        => $don->khachHang->hoTen ?? 'Khách lẻ',
+                    'tong_thanh_toan'   => $tongThanhToan,
+                    'trang_thai'        => $don->trang_thai,
+                    'dia_chi'           => $don->dia_chi,
+                    'ghi_chu'           => $don->ghi_chu,
+                    'tong_giam_gia'     => round($giamVoucher + $giamDiem + $giamFlashSale, 2),
+                    'phi_van_chuyen'    => $phiVanChuyen,
+                    'don_vi_van_chuyen' => $don->don_vi_van_chuyen,
+                    'ma_van_don'        => $don->ma_van_don,
                 ],
+                'hoa_don' => [
+                    'ma_hoa_don'        => $hoaDon->ma_hoa_don,
+                    'tong_tien_hang'    => (float)$hoaDon->tong_tien_hang,
+                    'tong_vat'          => (float)$hoaDon->tong_vat,
+                    'giam_flash_sale'   => (float)$hoaDon->giam_flash_sale,
+                    'giam_voucher'      => (float)$hoaDon->giam_voucher,
+                    'giam_diem'         => (float)$hoaDon->giam_diem,
+                    'phi_van_chuyen'    => (float)$hoaDon->phi_van_chuyen,
+                    'tong_thanh_toan'   => (float)$hoaDon->tong_thanh_toan,
+                    'phuong_thuc'       => $hoaDon->phuong_thuc_thanh_toan,
+                    'ngay_xuat'         => $hoaDon->ngay_xuat,
+                ]
             ]);
         });
     }
+
+    public function moveToShipping(Request $request, string $id)
+    {
+        return DB::transaction(function () use ($id, $request) {
+            // Khóa bản ghi để tránh race condition khi nhiều thao tác cùng lúc
+            $don = DonHang::lockForUpdate()
+                ->with(['khachHang'])
+                ->find($id);
+
+            if (!$don) {
+                return response()->json(['message' => 'Không tìm thấy đơn hàng'], 404);
+            }
+
+            // Kiểm tra trạng thái hiện tại
+            if ($don->trang_thai !== 'CHO_LAY_HANG') {
+                return response()->json([
+                    'message' => 'Chỉ có thể chuyển trạng thái từ CHO_LAY_HANG sang DANG_GIAO_HANG',
+                    'current' => $don->trang_thai,
+                ], 422);
+            }
+
+            // Kiểm tra mã vận đơn trước khi giao hàng
+            if (empty($don->ma_van_don)) {
+                return response()->json([
+                    'message' => 'Chưa có mã vận đơn. Vui lòng tạo vận đơn trước khi giao hàng.',
+                ], 422);
+            }
+
+            // Cập nhật trạng thái đơn sang DANG_GIAO_HANG
+            $don->update([
+                'trang_thai'    => 'DANG_GIAO_HANG',
+                'ngay_cap_nhat' => now(),
+                'ghi_chu'       => $request->input('ghi_chu', $don->ghi_chu),
+            ]);
+
+            // Ghi log lại hành động (nếu muốn theo dõi lịch sử)
+            Log::info('Đơn hàng đã chuyển sang DANG_GIAO_HANG', [
+                'don_hang_id' => $don->id,
+                'by'          => auth()->id(),
+            ]);
+
+            // Response JSON trả về
+            return response()->json([
+                'message' => 'Đơn hàng đã chuyển sang trạng thái DANG_GIAO_HANG.',
+                'don_hang' => [
+                    'id'                => $don->id,
+                    'ma_don_hang'       => $don->ma_don_hang,
+                    'khach_hang'        => $don->khachHang->hoTen ?? 'Khách lẻ',
+                    'tong_thanh_toan'   => (float) $don->tong_thanh_toan,
+                    'trang_thai'        => $don->trang_thai,
+                    'dia_chi'           => $don->dia_chi,
+                    'ghi_chu'           => $don->ghi_chu,
+                    'phi_van_chuyen'    => (float) ($don->phi_van_chuyen ?? 0),
+                    'don_vi_van_chuyen' => $don->don_vi_van_chuyen,
+                    'ma_van_don'        => $don->ma_van_don,
+                ]
+            ]);
+        });
+    }
+
+
 }

@@ -30,7 +30,6 @@ return new class extends Migration
             $table->timestamps();
 
             $table->foreign('don_hang_id')->references('id')->on('donhang')->cascadeOnDelete();
-            $table->foreign('san_pham_id')->references('id')->on('SanPham')->cascadeOnUpdate()->restrictOnDelete();
 
 
         });

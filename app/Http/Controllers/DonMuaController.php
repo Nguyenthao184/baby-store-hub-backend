@@ -48,6 +48,7 @@ class DonMuaController extends Controller
                 return [
                     'san_pham_id'  => $ct->san_pham_id,
                     'ten_san_pham' => $ct->ten_san_pham,
+                    'hinh_anh'    => $ct->hinh_anh,
                     'so_luong'     => $soLuong,
                     'don_gia'      => $donGia,                   // đơn giá như trong giỏ
                     'thanh_tien'   => round($thanhTien, 2),      // thành tiền dòng

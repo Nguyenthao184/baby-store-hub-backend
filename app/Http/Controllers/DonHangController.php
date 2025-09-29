@@ -12,6 +12,8 @@ use App\Models\SanPham;
 use App\Models\KhachHang;
 use App\Http\Requests\DonHang\ThanhToanDonHangRequest;
 use Illuminate\Support\Facades\Log; 
+use Carbon\Carbon;
+use Illuminate\Support\Facades\Schema;
 
 class DonHangController extends Controller
 {
@@ -382,5 +384,138 @@ class DonHangController extends Controller
         });
     }
 
+    public function dsDonHang(Request $request)
+    {
+        // ----- Parse bộ lọc thời gian -----
+        $range = $request->input('range'); 
+        $tz    = config('app.timezone', 'Asia/Ho_Chi_Minh');
+        $now   = Carbon::now($tz);
 
+        $start = null;
+        $end   = null;
+
+        switch ($range) {
+            case 'hom_nay':
+                $start = $now->copy()->startOfDay();
+                $end   = $now->copy()->endOfDay();
+                break;
+            case 'hom_qua':
+                $start = $now->copy()->subDay()->startOfDay();
+                $end   = $now->copy()->subDay()->endOfDay();
+                break;
+            case 'tuan_nay':
+                $start = $now->copy()->startOfWeek();
+                $end   = $now->copy()->endOfWeek();
+                break;
+            case 'tuan_truoc':
+                $start = $now->copy()->subWeek()->startOfWeek();
+                $end   = $now->copy()->subWeek()->endOfWeek();
+                break;
+            case 'thang_nay':
+                $start = $now->copy()->startOfMonth();
+                $end   = $now->copy()->endOfMonth();
+                break;
+            case 'thang_truoc':
+                $start = $now->copy()->subMonth()->startOfMonth();
+                $end   = $now->copy()->subMonth()->endOfMonth();
+                break;
+        }
+
+        // ----- Base query: chỉ đơn CHO_LAY_HANG -----
+        $q = DonHang::with([
+                'khachHang:id,hoTen,sdt',
+                'chiTietDonHang' => function ($q) {
+                    $q->select([
+                        'id','don_hang_id','san_pham_id','ten_san_pham',
+                        'gia','vat','so_luong','giam_gia','flash_sale','thanh_tien', // có thể thiếu cột nào đó -> getAttribute() bên dưới
+                    ]);
+                },
+                'chiTietDonHang.sanPham:id,hinhAnh' // ảnh từ bảng SanPham
+            ])
+            ->where('trang_thai', 'CHO_LAY_HANG')
+            ->orderByDesc('ngay_tao');
+
+        if ($start && $end) {
+            $q->whereBetween('ngay_tao', [$start, $end]);
+        }
+
+        // ----- Tìm kiếm nhanh theo mã đơn -----
+        if ($search = trim((string)$request->input('q', ''))) {
+            $q->where('ma_don_hang', 'like', "%{$search}%");
+        }
+
+        $orders = $q->get();
+
+        $hasDonHangWeight = Schema::hasColumn('donhang', 'khoi_luong') || Schema::hasColumn('DonHang', 'khoi_luong');
+
+        // Map dữ liệu trả về
+        $data = $orders->map(function ($don) use ($hasDonHangWeight) {
+            // Hóa đơn (lấy trực tiếp các tổng)
+            $hd = $don->hoaDon; // có thể null nếu chưa phát hành hóa đơn
+            $tongTienHang   = (float) optional($hd)->tong_tien_hang;
+            $tongVAT        = (float) optional($hd)->tong_vat;
+            $giamFlashSale  = (float) optional($hd)->giam_flash_sale;
+            $giamVoucher    = (float) optional($hd)->giam_voucher;
+            $giamDiem       = (float) optional($hd)->giam_diem;
+            $phiVanChuyen   = (float) optional($hd)->phi_van_chuyen;
+            $tongThanhToan  = (float) optional($hd)->tong_thanh_toan;
+
+            // Danh sách sản phẩm: GIỮ NGUYÊN 'gia' và 'thanh_tien' từ chi tiết
+            $items = $don->chiTietDonHang->map(function ($ct) {
+                return [
+                    'san_pham_id'  => $ct->san_pham_id,
+                    'ten_san_pham' => $ct->ten_san_pham,
+                    'hinh_anh'     => optional($ct->sanPham)->hinhAnh ?? null,
+                    'so_luong'     => (int) $ct->so_luong,
+                    'gia'          => (float) $ct->gia,          // GIỮ NGUYÊN
+                    'thanh_tien'   => (float) $ct->thanh_tien,   // GIỮ NGUYÊN
+                    'vat'          => (float) ($ct->vat ?? 0),
+                    'giam_gia'     => (float) ($ct->giam_gia ?? 0),
+                ];
+            });
+
+            // Khối lượng đơn (chỉ đọc trực tiếp nếu có cột trên bảng đơn)
+            $khoiLuong = $hasDonHangWeight ? (float) ($don->khoi_luong ?? 0) : null;
+
+            return [
+                // Các trường yêu cầu hiển thị
+                'ma_don_hang'       => $don->ma_don_hang,
+                'ten_khach_hang'    => optional($don->khachHang)->hoTen ?? 'Khách lẻ',
+                'tong_thanh_toan'   => $tongThanhToan,
+                'trang_thai'        => $don->trang_thai, // CHO_LAY_HANG
+                'dia_chi_giao_hang' => $don->dia_chi,
+                'ghi_chu'           => $don->ghi_chu,
+                'ma_van_don'        => $don->ma_van_don,
+                'khoi_luong'        => $khoiLuong,       // null nếu không có cột
+                'tong_tien'         => $tongTienHang,    // từ bảng hóa đơn
+                // Tổng giảm giá = cộng 3 cột giảm (nếu muốn giữ nguyên từng cột, FE cộng cũng được)
+                'tong_giam_gia'     => round($giamFlashSale + $giamVoucher + $giamDiem, 2),
+                'phi_van_chuyen'    => $phiVanChuyen,    // từ bảng hóa đơn
+                'san_pham'          => $items,
+
+                // Thêm phần breakdown (nếu FE cần hiển thị chi tiết)
+                'breakdown' => [
+                    'tong_vat'        => $tongVAT,
+                    'giam_flash_sale' => $giamFlashSale,
+                    'giam_voucher'    => $giamVoucher,
+                    'giam_diem'       => $giamDiem,
+                ],
+
+                // Thông tin tham chiếu hóa đơn (tuỳ ý dùng)
+                'hoa_don' => $hd ? [
+                    'ma_hoa_don'  => $hd->ma_hoa_don,
+                    'ngay_xuat'   => $hd->ngay_xuat,
+                    'phuong_thuc' => $hd->phuong_thuc_thanh_toan,
+                ] : null,
+
+                'ngay_tao'          => $don->ngay_tao,
+            ];
+        });
+
+        return response()->json([
+            'range' => $range,
+            'count' => $data->count(),
+            'data'  => $data,
+        ], 200);
+    }
 }

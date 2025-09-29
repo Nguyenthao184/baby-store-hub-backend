@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\DB;
 use App\Models\DonHang;
 use App\Models\ChiTietDonHang;
 use App\Models\KhachHang;
+use App\Models\SanPham;
 use App\Services\GioHangService;
 
 class DonMuaController extends Controller
@@ -23,14 +24,22 @@ class DonMuaController extends Controller
             return response()->json(['message' => 'Unauthenticated'], 401);
         }
 
-        $kh = \App\Models\KhachHang::where('taiKhoan_id', $userId)->first();
+        $kh = KhachHang::where('taiKhoan_id', $userId)->first();
         if (!$kh) {
             return response()->json(['message' => 'Không tìm thấy khách hàng'], 404);
         }
 
-        $q = \App\Models\DonHang::with(['chiTietDonHang'])
-            ->where('khach_hang_id', $kh->id)
-            ->orderByDesc('ngay_tao');
+        $q = DonHang::with([
+            'chiTietDonHang' => function ($q) {
+                $q->select([
+                    'id','don_hang_id','san_pham_id',
+                    'ten_san_pham','so_luong','thanh_tien'
+                ]);
+            },
+            'chiTietDonHang.sanPham:id,hinhAnh' // chỉ lấy cột hình ảnh từ sản phẩm
+        ])
+        ->where('khach_hang_id', $kh->id)
+        ->orderByDesc('ngay_tao');
 
         if ($t = $request->input('trang_thai')) $q->where('trang_thai', $t);
         if ($from = $request->input('from'))     $q->whereDate('ngay_tao', '>=', $from);
@@ -45,10 +54,14 @@ class DonMuaController extends Controller
                 $thanhTien = (float)($ct->thanh_tien ?? 0);
                 $donGia    = round($soLuong > 0 ? $thanhTien / $soLuong : 0, 2);
 
+                $hinhAnhTuSanPham = optional($ct->sanPham)->hinhAnh;
+                $hinhAnhTuChiTiet = $ct->getAttribute('hinh_anh') ?? $ct->getAttribute('hinhAnh');
+                $hinhAnh = $hinhAnhTuSanPham ?? $hinhAnhTuChiTiet ?? null;
+
                 return [
                     'san_pham_id'  => $ct->san_pham_id,
                     'ten_san_pham' => $ct->ten_san_pham,
-                    'hinh_anh'    => $ct->hinh_anh,
+                    'hinh_anh'    => $hinhAnh,
                     'so_luong'     => $soLuong,
                     'don_gia'      => $donGia,                   // đơn giá như trong giỏ
                     'thanh_tien'   => round($thanhTien, 2),      // thành tiền dòng

@@ -112,6 +112,7 @@ Route::prefix('phieu-nhap-kho')->group(function () {
 Route::post('/orders/{id}/to-ready', [DonHangController::class, 'moveToReadyForPickup']); // Chuyển trạng thái CHO_XU_LY -> CHO_LAY_HANG
 Route::post('/orders/{id}/to-shipping', [DonHangController::class, 'moveToShipping']); // Chuyển trạng thái CHO_LAY_HANG -> DANG_GIAO_HANG
 Route::get('don-hang', [DonHangController::class, 'dsDonHang']); // Danh sách đơn hàng (lọc)
+Route::get('/orders/pending', [DonHangController::class, 'dsChoXuLy']); // Danh sách đơn hàng chờ xử lý
 
 });
 

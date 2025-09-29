@@ -369,7 +369,19 @@ class CheckoutController extends Controller
             // 🎯 Giảm voucher & điểm + phí VC
             $giamVoucher = (float)($data['giam_voucher'] ?? 0);
             $giamDiem    = (float)($data['giam_diem'] ?? 0);
-            $phiVC       = 20000.0;
+
+            // 📌 Lấy phương thức thanh toán để biết có cộng phí COD không
+            $method = strtolower((string)$data['phuong_thuc_thanh_toan']);
+            if (!in_array($method, ['vnpay', 'momo', 'cod'], true)) {
+                return response()->json(['message' => 'Phương thức thanh toán không hợp lệ'], 422);
+            }
+
+            // 🚚 Phí vận chuyển mặc định
+            $phiVC = 20000.0;
+            if ($method === 'cod') {
+                // ➕ cộng thêm phí COD vào phí vận chuyển
+                $phiVC += 20000.0;
+            }
 
             // 🧮 Tổng thanh toán cuối
             $tongThanhToan = round($tongSauGiam - $giamVoucher - $giamDiem + $phiVC, 2);
@@ -408,8 +420,6 @@ class CheckoutController extends Controller
                 'so_luong'     => $soLuong,
                 'thanh_tien'   => $tongSauGiam,
             ]);
-
-            $sp->decrement('soLuongTon', $soLuong);
 
             ThanhToan::create([
                 'don_hang_id'   => $donhang->id,
@@ -509,14 +519,17 @@ class CheckoutController extends Controller
             $giamDiem     = (float)($data['giam_diem']      ?? 0);
             $phiVC        = 20000.0;                         // phí ship cố định theo yêu cầu
 
-            $tongThanhToan = round($tamTinh - $giamVoucher - $giamDiem + $phiVC, 2);
-
             // 3) Xác định phương thức & trạng thái ban đầu
             $method = strtolower((string)$data['phuong_thuc_thanh_toan']); // 'vnpay' | 'momo' | 'cod'
             if (!in_array($method, ['vnpay', 'momo', 'cod'], true)) {
                 return response()->json(['message' => 'Phương thức thanh toán không hợp lệ'], 422);
             }
             $trangThaiDon = $method === 'cod' ? 'CHO_XU_LY' : 'CHO_THANH_TOAN';
+            if ($method === 'cod') {
+                $phiVC += 20000.0; // cộng thêm phí COD nếu thanh toán COD
+            }
+
+            $tongThanhToan = round($tamTinh - $giamVoucher - $giamDiem + $phiVC, 2);
 
             // 4) Tạo Đơn hàng
             $donhang = DonHang::create([

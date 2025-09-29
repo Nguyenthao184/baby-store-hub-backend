@@ -518,4 +518,54 @@ class DonHangController extends Controller
             'data'  => $data,
         ], 200);
     }
+
+    public function dsChoXuLy(Request $request)
+    {
+        // Eager-load các quan hệ cần thiết
+        $orders = DonHang::with([
+                'khachHang:id,hoTen,sdt',
+                'chiTietDonHang' => function ($q) {
+                    $q->select([
+                        'id', 'don_hang_id', 'san_pham_id',
+                        'ten_san_pham', 'so_luong', 'gia', 'thanh_tien'
+                    ]);
+                },
+                'chiTietDonHang.sanPham:id,hinhAnh',
+                'hoaDon:don_hang_id,tong_thanh_toan',
+            ])
+            ->where('trang_thai', 'CHO_XU_LY')
+            ->orderByDesc('ngay_tao')
+            ->get();
+
+        $data = $orders->map(function ($don) {
+            $tongThanhToan = $don->tong_thanh_toan ?? optional($don->hoaDon)->tong_thanh_toan ?? 0;
+
+            $items = $don->chiTietDonHang->map(function ($ct) {
+                return [
+                    'hinh_anh'   => optional($ct->sanPham)->hinhAnh ?? null,
+                    'ten'        => $ct->ten_san_pham,
+                    'so_luong'   => (int) $ct->so_luong,
+                    'don_gia'    => (float) $ct->gia,
+                    'thanh_tien' => (float) $ct->thanh_tien,
+                ];
+            });
+
+            return [
+                'ma_don_hang'     => $don->ma_don_hang,
+                'ma_van_don'      => $don->ma_van_don,
+                'ngay_tao'        => $don->ngay_tao,
+                'tong_thanh_toan' => (float) $tongThanhToan,
+                'ten_khach_hang'  => optional($don->khachHang)->hoTen ?? 'Khách lẻ',
+                'so_dien_thoai'   => $don->so_dien_thoai ?? optional($don->khachHang)->sdt,
+                'dia_chi'         => $don->dia_chi,
+                'san_pham'        => $items,
+            ];
+        });
+
+        return response()->json([
+            'count' => $data->count(),
+            'data'  => $data,
+        ], 200);
+    }
+
 }

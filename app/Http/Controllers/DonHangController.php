@@ -267,6 +267,12 @@ class DonHangController extends Controller
     public function moveToShipping(Request $request, string $id)
     {
         return DB::transaction(function () use ($id, $request) {
+
+            // Helper làm tròn tiền về đồng (half up)
+            $money = function (float|int $v): int {
+                return (int) round((float) $v, 0, PHP_ROUND_HALF_UP);
+            };
+
             $don = DonHang::lockForUpdate()
                 ->with(['khachHang', 'chiTietDonHang'])
                 ->find($id);
@@ -294,29 +300,38 @@ class DonHangController extends Controller
                 ], 422);
             }
 
-            // Chỉ tính các khoản hiển thị; KHÔNG đụng tổng thanh toán
-            $giamFlashSale = $don->chiTietDonHang->sum(function ($ct) {
-                $gia   = (float) $ct->gia;                 // đã VAT
-                $flash = (float) ($ct->flash_sale ?? 0);
-                $qty   = (int) $ct->so_luong;
-                return round(($gia * $flash) * $qty, 2);
-            });
+            // --- Chỉ tính các khoản hiển thị; KHÔNG đụng tổng thanh toán ---
+            // Tổng giảm flash (trên giá đã VAT): sum(gia * flash * qty) => LÀM TRÒN TỔNG
+            $rawFlash = $don->chiTietDonHang->reduce(function ($sum, $ct) {
+                $gia   = (float) $ct->gia;                 // đơn giá ĐÃ VAT / 1 sp
+                $flash = (float) ($ct->flash_sale ?? 0);   // 0..1 hoặc %
+                if ($flash > 1) $flash = $flash / 100;     // normalize
+                $qty   = (int)   $ct->so_luong;
+                return $sum + ($gia * $flash * $qty);
+            }, 0.0);
+            $giamFlashSale = $money($rawFlash);
 
             $giamVoucher   = (float) ($don->giam_voucher ?? 0);
             $giamDiem      = (float) ($don->giam_diem ?? 0);
             $phiVanChuyen  = (float) ($don->phi_van_chuyen ?? 0);
-            $tongThanhToan = (float) $don->tong_thanh_toan; // giữ nguyên từ đơn hàng
+            $tongThanhToan = (float)  $don->tong_thanh_toan; // giữ nguyên từ đơn hàng
 
-            // Suy ra tổng tiền hàng (đã VAT, đã trừ flash)
+            // Suy ra tổng tiền hàng (đã VAT, đã trừ flash) từ đơn hàng
             $tongTienHang = round($tongThanhToan + $giamVoucher + $giamDiem - $phiVanChuyen, 2);
 
-            // Tách VAT theo chi tiết (nếu cần hiển thị)
-            $tongVAT = $don->chiTietDonHang->sum(function ($ct) {
-                $gia = (float) $ct->gia;   // đã gồm VAT
-                $vat = (float) ($ct->vat ?? 0);   // %
-                $qty = (int) $ct->so_luong;
-                return round(($gia * $vat / (100 + $vat)) * $qty, 2);
-            });
+            // --- TỔNG VAT = GIÁ GỐC (SanPham.giaBan) * VAT * SỐ LƯỢNG => LÀM TRÒN TỔNG ---
+            // Lấy map giá gốc cho tất cả sản phẩm trong đơn (tránh N+1)
+            $spPrices = SanPham::whereIn('id', $don->chiTietDonHang->pluck('san_pham_id'))
+                ->pluck('giaBan', 'id');
+
+            $rawVat = $don->chiTietDonHang->reduce(function ($sum, $ct) use ($spPrices) {
+                $giaGoc = (float) ($spPrices[$ct->san_pham_id] ?? 0); // giá bán ở bảng sản phẩm
+                $vat    = (float) ($ct->vat ?? 0);                    // 0..1 hoặc %
+                if ($vat > 1) $vat = $vat / 100;                      // normalize
+                $qty    = (int)   $ct->so_luong;
+                return $sum + ($giaGoc * $vat * $qty);
+            }, 0.0);
+            $tongVAT = $money($rawVat);
 
             // ---- TẠO / CẬP NHẬT HÓA ĐƠN ----
             $hoaDon = HoaDon::where('don_hang_id', $don->id)->first();
@@ -327,23 +342,23 @@ class DonHangController extends Controller
                     'ma_hoa_don'              => $maHoaDon,
                     'don_hang_id'             => $don->id,
                     'ngay_xuat'               => now(),
-                    'tong_tien_hang'          => $tongTienHang,
-                    'tong_vat'                => round($tongVAT, 2),
-                    'giam_flash_sale'         => round($giamFlashSale, 2),
-                    'giam_voucher'            => round($giamVoucher, 2),
-                    'giam_diem'               => round($giamDiem, 2),
-                    'phi_van_chuyen'          => round($phiVanChuyen, 2),
+                    'tong_tien_hang'          => $tongTienHang,              // có thể giữ 2 chữ số
+                    'tong_vat'                => $tongVAT,                   // ✅ số nguyên (đồng)
+                    'giam_flash_sale'         => $giamFlashSale,             // ✅ số nguyên (đồng)
+                    'giam_voucher'            => $giamVoucher,               // giữ nguyên theo đơn hàng
+                    'giam_diem'               => $giamDiem,                  // giữ nguyên theo đơn hàng
+                    'phi_van_chuyen'          => $phiVanChuyen,
                     'tong_thanh_toan'         => $tongThanhToan,
                     'phuong_thuc_thanh_toan'  => $don->phuong_thuc_thanh_toan,
                 ]);
             } else {
                 $hoaDon->update([
                     'tong_tien_hang'  => $tongTienHang,
-                    'tong_vat'        => round($tongVAT, 2),
-                    'giam_flash_sale' => round($giamFlashSale, 2),
-                    'giam_voucher'    => round($giamVoucher, 2),
-                    'giam_diem'       => round($giamDiem, 2),
-                    'phi_van_chuyen'  => round($phiVanChuyen, 2),
+                    'tong_vat'        => $tongVAT,           // ✅ số nguyên
+                    'giam_flash_sale' => $giamFlashSale,     // ✅ số nguyên
+                    'giam_voucher'    => $giamVoucher,
+                    'giam_diem'       => $giamDiem,
+                    'phi_van_chuyen'  => $phiVanChuyen,
                     'tong_thanh_toan' => $tongThanhToan,
                 ]);
             }
@@ -459,7 +474,7 @@ class DonHangController extends Controller
             $phiVanChuyen   = (float) ($don->phi_van_chuyen ?? 0);
             $tongThanhToan  = (float) ($don->tong_thanh_toan ?? 0);
 
-            // Tính flash sale & VAT từ chi tiết
+            // Tính flash sale & VAT từ chi tiết (giữ để hiển thị breakdown)
             $giamFlashSale = $don->chiTietDonHang->sum(function ($ct) {
                 return round(((float)$ct->gia * (float)($ct->flash_sale ?? 0)) * (int)$ct->so_luong, 2);
             });
@@ -483,29 +498,43 @@ class DonHangController extends Controller
 
             $khoiLuong = $hasDonHangWeight ? (float) ($don->khoi_luong ?? 0) : null;
 
+            // ---- Phương thức thanh toán + quy tắc hiển thị ----
+            $ptttRaw = $don->phuong_thuc_thanh_toan ?? $don->phuong_thuc ?? '';
+            $pttt    = strtolower((string)$ptttRaw);
+            $isOnlineGateway = in_array($pttt, ['vnpay','momo'], true);
+
+            // *** TỔNG GIẢM GIÁ: chỉ từ voucher + điểm ***
+            $onlyOrderLevelDiscount = round($giamVoucher + $giamDiem, 2);
+
+            // Giá trị hiển thị sau quy tắc (giữ nguyên rule ẩn cho online nếu bạn đang dùng)
+            $displayTongThanhToan = $isOnlineGateway ? 0.0 : $tongThanhToan;
+            $displayPhiVanChuyen  = $isOnlineGateway ? 0.0 : $phiVanChuyen;
+            $displayTongGiamGia   = $isOnlineGateway ? 0.0 : $onlyOrderLevelDiscount;
+
+            $breakdown = $isOnlineGateway
+                ? ['tong_vat' => 0.0, 'giam_flash_sale' => 0.0, 'giam_voucher' => 0.0, 'giam_diem' => 0.0]
+                : ['tong_vat' => $tongVAT, 'giam_flash_sale' => $giamFlashSale, 'giam_voucher' => $giamVoucher, 'giam_diem' => $giamDiem];
+
             return [
-                'id'                => $don->id,
-                'ma_don_hang'       => $don->ma_don_hang,
-                'ten_khach_hang'    => optional($don->khachHang)->hoTen ?? 'Khách lẻ',
-                'so_dien_thoai'     => $don->so_dien_thoai ?: (optional($don->khachHang)->sdt ?? null),
-                'tong_thanh_toan'   => $tongThanhToan,
-                'trang_thai'        => $don->trang_thai,
-                'dia_chi_giao_hang' => $don->dia_chi,
-                'ghi_chu'           => $don->ghi_chu,
-                'ma_van_don'        => $don->ma_van_don,
-                'khoi_luong'        => $khoiLuong,
-                'tong_tien'         => $tongTienHang,
-                'tong_giam_gia'     => round($giamFlashSale + $giamVoucher + $giamDiem, 2),
-                'phi_van_chuyen'    => $phiVanChuyen,
-                'san_pham'          => $items,
-                'breakdown' => [
-                    'tong_vat'        => $tongVAT,
-                    'giam_flash_sale' => $giamFlashSale,
-                    'giam_voucher'    => $giamVoucher,
-                    'giam_diem'       => $giamDiem,
-                ],
-                'hoa_don' => null, // không phụ thuộc hóa đơn ở màn này
-                'ngay_tao' => $don->ngay_tao,
+                'id'                      => $don->id,
+                'ma_don_hang'             => $don->ma_don_hang,
+                'ten_khach_hang'          => optional($don->khachHang)->hoTen ?? 'Khách lẻ',
+                'so_dien_thoai'           => $don->so_dien_thoai ?: (optional($don->khachHang)->sdt ?? null),
+                'tong_thanh_toan'         => $displayTongThanhToan,
+                'trang_thai'              => $don->trang_thai,
+                'dia_chi_giao_hang'       => $don->dia_chi,
+                'ghi_chu'                 => $don->ghi_chu,
+                'ma_van_don'              => $don->ma_van_don,
+                'khoi_luong'              => $khoiLuong,
+                'tong_tien'               => $tongTienHang,
+                // 👇 chỉ tính từ voucher + điểm
+                'tong_giam_gia'           => $displayTongGiamGia,
+                'phi_van_chuyen'          => $displayPhiVanChuyen,
+                'san_pham'                => $items,
+                'breakdown'               => $breakdown,
+                'hoa_don'                 => null,
+                'ngay_tao'                => $don->ngay_tao,
+                'phuong_thuc_thanh_toan'  => $ptttRaw,
             ];
         });
 
@@ -562,6 +591,5 @@ class DonHangController extends Controller
             'data'  => $data,
         ], 200);
     }
-
 
 }

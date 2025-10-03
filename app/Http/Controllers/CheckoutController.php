@@ -334,11 +334,11 @@ class CheckoutController extends Controller
     public function muaNgay(MuaNgayRequest $request, GhnService $ghn)
     {
         return DB::transaction(function () use ($request, $ghn) {
-            $data = $request->validated();
+            $data   = $request->validated();
             $userId = $request->user()->id;
-            $kh = KhachHang::where('taiKhoan_id', $userId)->first();
+            $kh     = KhachHang::where('taiKhoan_id', $userId)->first();
 
-            // 🔎 1. Lấy sản phẩm
+            // 1) Lấy sản phẩm
             $sp = SanPham::lockForUpdate()->find($data['san_pham_id']);
             if (!$sp) {
                 return response()->json(['message' => 'Không tìm thấy sản phẩm'], 404);
@@ -349,44 +349,42 @@ class CheckoutController extends Controller
                 return response()->json(['message' => 'Sản phẩm không đủ tồn kho'], 422);
             }
 
-            // 📊 2. Tính toán giá trị
-            $giaGoc   = (float) ($sp->giaBan ?? 0);
-            $vatPct   = (float) ($sp->VAT ?? 0);
-            $flashPct = (float) ($sp->flash_sale ?? 0);
+            // 2) Tính giá theo nghiệp vụ (VAT mặc định 0.08)
+            $giaGoc   = (float) ($sp->giaBan ?? 0); // giá gốc = giá bán
+            $vatRaw   = $sp->VAT ?? 0.08;
+            $vat      = (float) ($vatRaw > 1 ? $vatRaw / 100 : $vatRaw); // 0..1
+            $flashRaw = $sp->flash_sale ?? 0;
+            $flash    = (float) ($flashRaw > 1 ? $flashRaw / 100 : $flashRaw); // 0..1
 
-            // 🧮 Tổng VAT = giá gốc * số lượng * %VAT
-            $tongVAT = round($giaGoc * $soLuong * ($vatPct / 100), 2);
+            // Đơn giá đã VAT & sau flash — làm tròn theo đồng
+            $giaSauVAT      = $this->money($giaGoc * (1 + $vat));
+            $donGiaSauFlash = $this->money($giaSauVAT * (1 - $flash));
 
-            // 🧮 Giảm flash = (giá gốc * (1 + VAT) * flash) * số lượng
-            $giamFlashSale = round($giaGoc * (1 + $vatPct / 100) * $flashPct * $soLuong, 2);
+            // Thành tiền (1 dòng) = đơn giá sau flash * số lượng — là số nguyên đồng
+            $thanhTien = $this->money($donGiaSauFlash * $soLuong);
 
-            // 🧮 Tổng giá đã VAT (chưa giảm) = giá gốc * (1 + VAT) * số lượng
-            $tongSauVAT = round($giaGoc * (1 + $vatPct / 100) * $soLuong, 2);
+            // Breakdown hiển thị (cũng làm tròn đồng)
+            $tongVAT       = $this->money($giaGoc * $soLuong * $vat);
+            $giamFlashSale = $this->money($giaSauVAT * $flash * $soLuong);
 
-            // 🧮 Tổng sau khi giảm flash = tổng sau VAT - giảm flash
-            $tongSauGiam = round($tongSauVAT - $giamFlashSale, 2);
+            // Giảm thêm cấp đơn hàng (voucher/điểm) — làm tròn đồng
+            $giamVoucher = $this->money((float)($data['giam_voucher'] ?? 0));
+            $giamDiem    = $this->money((float)($data['giam_diem'] ?? 0));
 
-            // 🎯 Giảm voucher & điểm + phí VC
-            $giamVoucher = (float)($data['giam_voucher'] ?? 0);
-            $giamDiem    = (float)($data['giam_diem'] ?? 0);
-
-            // 📌 Lấy phương thức thanh toán để biết có cộng phí COD không
+            // Phương thức & phí VC (VNPay/MoMo: 20k, COD: 40k) — số nguyên
             $method = strtolower((string)$data['phuong_thuc_thanh_toan']);
             if (!in_array($method, ['vnpay', 'momo', 'cod'], true)) {
                 return response()->json(['message' => 'Phương thức thanh toán không hợp lệ'], 422);
             }
+            $phiVC = ($method === 'cod') ? 40000 : 20000;
 
-            // 🚚 Phí vận chuyển mặc định
-            $phiVC = 20000.0;
-            if ($method === 'cod') {
-                // ➕ cộng thêm phí COD vào phí vận chuyển
-                $phiVC += 20000.0;
-            }
+            // Tạm tính = tổng thành_tiền từ chi tiết
+            $tamTinh = $thanhTien; // 1 dòng nên = $thanhTien (số nguyên)
 
-            // 🧮 Tổng thanh toán cuối
-            $tongThanhToan = round($tongSauGiam - $giamVoucher - $giamDiem + $phiVC, 2);
+            // Tổng thanh toán = tạm tính - voucher - điểm + phí VC — số nguyên
+            $tongThanhToan = $this->money($tamTinh - $giamVoucher - $giamDiem + $phiVC);
 
-            // 🧾 3. Tạo đơn hàng
+            // 3) Tạo Đơn hàng
             $donhang = DonHang::create([
                 'id'                      => (string) Str::uuid(),
                 'ma_don_hang'             => $this->genMaDonHang(),
@@ -396,41 +394,43 @@ class CheckoutController extends Controller
                 'dia_chi'                 => $data['dia_chi'],
                 'ghi_chu'                 => $data['ghi_chu'] ?? null,
 
-                'tam_tinh'                => $tongSauVAT, // tổng trước giảm
-                'giam_voucher'            => $giamVoucher,
-                'giam_diem'               => $giamDiem,
-                'phi_van_chuyen'          => $phiVC,
-                'tong_thanh_toan'         => $tongThanhToan,
+                'tam_tinh'                => $tamTinh,        // ✅ tổng từ chi tiết (đồng)
+                'giam_voucher'            => $giamVoucher,    // ✅ đồng
+                'giam_diem'               => $giamDiem,       // ✅ đồng
+                'phi_van_chuyen'          => $phiVC,          // ✅ 20000 | 40000
+                'tong_thanh_toan'         => $tongThanhToan,  // ✅ đồng
                 'voucher_id'              => $data['voucher_id'] ?? null,
 
                 'trang_thai'              => 'CHO_XU_LY',
-                'phuong_thuc_thanh_toan'  => $data['phuong_thuc_thanh_toan'],
+                'phuong_thuc_thanh_toan'  => $method,
                 'ngay_tao'                => now(),
             ]);
 
+            // 4) Snapshot chi tiết — giam_gia để trống (voucher là cấp đơn)
             ChiTietDonHang::create([
                 'id'           => (string) Str::uuid(),
                 'don_hang_id'  => $donhang->id,
                 'san_pham_id'  => $sp->id,
                 'ten_san_pham' => $sp->tenSanPham,
-                'gia'          => $giaGoc,
-                'vat'          => $vatPct,
-                'flash_sale'   => $flashPct,
-                'giam_gia'     => round($giaGoc * $flashPct, 2),
+
+                'gia'          => $giaSauVAT,   // ✅ đơn giá đã VAT / 1 sp (đồng)
+                'vat'          => $vat,         // 0.08
+                'flash_sale'   => $flash,       // 0..1
+                'giam_gia'     => 0,         // ✅ để trống vì voucher ở cấp đơn
                 'so_luong'     => $soLuong,
-                'thanh_tien'   => $tongSauGiam,
+                'thanh_tien'   => $thanhTien,   // ✅ đồng
             ]);
 
             ThanhToan::create([
                 'don_hang_id'   => $donhang->id,
-                'kenh'          => $donhang->phuong_thuc_thanh_toan,
-                'so_tien'       => $tongThanhToan,
+                'kenh'          => $method,
+                'so_tien'       => $tongThanhToan, // ✅ đồng
                 'don_vi_tien'   => 'VND',
                 'trang_thai'    => 'CHO_XU_LY',
                 'ma_tham_chieu' => $donhang->id,
             ]);
 
-            // 🚚 4. Gửi đơn sang GHN
+            // 5) GHN
             $resolved       = $ghn->resolveFullAddress((string) $data['dia_chi']);
             $toDistrictId   = (int) ($resolved['to_district_id'] ?? 0);
             $toWardCode     = (string) ($resolved['to_ward_code'] ?? '');
@@ -440,8 +440,7 @@ class CheckoutController extends Controller
 
             $fromDistrictId = (int) env('GHN_FROM_DISTRICT_ID');
             $serviceId      = $ghn->getServiceId($fromDistrictId, $toDistrictId, 2);
-            $method         = $donhang->phuong_thuc_thanh_toan;
-            $codAmount      = ($method === 'cod') ? (int) round($tongThanhToan) : 0;
+            $codAmount      = ($method === 'cod') ? (int) $tongThanhToan : 0; // đã là số nguyên
 
             $payload = [
                 'to_name'           => $data['ten_nguoi_nhan'],
@@ -459,7 +458,7 @@ class CheckoutController extends Controller
                 'items' => [[
                     'name'     => $sp->tenSanPham,
                     'quantity' => $soLuong,
-                    'price'    => (int) round($giaGoc),
+                    'price'    => (int) $this->money($giaGoc), // đơn giá tham chiếu
                     'weight'   => 500,
                 ]],
             ];
@@ -485,9 +484,9 @@ class CheckoutController extends Controller
                 'don_hang_id'      => $donhang->id,
                 'ma_don_hang'      => $donhang->ma_don_hang,
                 'ma_van_don'       => $donhang->ma_van_don,
-                'tong_vat'         => $tongVAT,
-                'giam_flash_sale'  => $giamFlashSale,
-                'tong_thanh_toan'  => $tongThanhToan,
+                'tong_vat'         => $tongVAT,        // ✅ đã làm tròn đồng
+                'giam_flash_sale'  => $giamFlashSale,  // ✅ đã làm tròn đồng
+                'tong_thanh_toan'  => $tongThanhToan,  // ✅ đã làm tròn đồng
                 'payment_url'      => $paymentUrl,
             ], 201);
         });
@@ -680,5 +679,11 @@ class CheckoutController extends Controller
             'paid'        => optional($order->thanhToan)->trang_thai === 'DA_THANH_TOAN',
             'gateway'     => optional($order->thanhToan)->kenh,
         ]);
+    }
+
+    private function money(float|int $v): int
+    {
+        // Làm tròn 0 chữ số thập phân, half up — 223095.60 => 223096
+        return (int) round((float) $v, 0, PHP_ROUND_HALF_UP);
     }
 }

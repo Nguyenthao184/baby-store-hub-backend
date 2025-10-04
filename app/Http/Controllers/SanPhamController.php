@@ -330,33 +330,71 @@ class SanPhamController extends Controller
     public function search(Request $request)
     {
         try {
-
-            $noiDungTim = '%' . $request->noiDungTim . '%';
-            if ($noiDungTim === '') {
+            $keyword = trim((string) $request->noiDungTim);
+            if ($keyword === '') {
                 return response()->json([
-                    'status' => false,
+                    'status'  => false,
                     'message' => 'Vui lòng nhập nội dung tìm kiếm'
-                ])->setStatusCode(400);
+                ], 400);
             }
-            $query = DB::table('SanPham')
-                ->where(function ($subQuery) use ($noiDungTim) {
-                    $subQuery->where('tenSanPham', 'like', $noiDungTim)
-                        ->orWhere('maSanPham', 'like', $noiDungTim)
-                        ->orWhere('maSKU', 'like', $noiDungTim);
+            $like = "%{$keyword}%";
+
+            // Lấy thêm cột flash_sale
+            $rows = DB::table('SanPham')
+                ->where(function ($q) use ($like) {
+                    $q->where('tenSanPham', 'like', $like)
+                    ->orWhere('maSanPham', 'like', $like)
+                    ->orWhere('maSKU', 'like', $like);
                 })
-                ->select('id', 'tenSanPham', 'maSKU', 'hinhAnh', 'moTa', 'giaBan', 'soLuongTon', 'VAT')
+                ->select('id', 'tenSanPham', 'maSKU', 'hinhAnh', 'moTa', 'giaBan', 'soLuongTon', 'VAT', 'flash_sale')
                 ->limit(20)
                 ->get();
 
-            return response()->json($query);
-        } catch (\Exception $e) {
+            // Làm tròn tiền về đồng (half up)
+            $money = fn($v) => (int) round((float) $v, 0, PHP_ROUND_HALF_UP);
+
+            // Tính giá hiển thị: giá sau VAT và sau flash sale
+            $data = $rows->map(function ($sp) use ($money) {
+                $giaBan  = (float) ($sp->giaBan ?? 0);
+
+                // VAT: mặc định 0.08, normalize nếu đang lưu 8 -> 0.08
+                $vat = isset($sp->VAT) ? (float) $sp->VAT : 0.08;
+                if ($vat > 1) $vat /= 100.0;
+
+                // Flash: normalize 0..1
+                $flash = isset($sp->flash_sale) ? (float) $sp->flash_sale : 0.0;
+                if ($flash > 1) $flash /= 100.0;
+
+                $giaSauVAT   = $money($giaBan * (1 + $vat));
+                $giaHienThi  = $money($giaSauVAT * (1 - $flash));
+
+                return [
+                    'id'         => $sp->id,
+                    'tenSanPham' => $sp->tenSanPham,
+                    'maSKU'      => $sp->maSKU,
+                    'hinhAnh'    => $sp->hinhAnh,
+                    'moTa'       => $sp->moTa,
+                    'soLuongTon' => (int) $sp->soLuongTon,
+
+                    // Thông tin gốc (giữ lại nếu cần)
+                    'giaBan'     => $giaBan,
+                    'VAT'        => $sp->VAT,
+                    'flash_sale' => $sp->flash_sale,
+
+                    // 👇 Giá dùng để bán/hiển thị
+                    'gia_sau_vat' => $giaSauVAT,
+                    'gia'         => $giaHienThi, // sau VAT & flash sale
+                ];
+            });
+
+            return response()->json($data);
+        } catch (\Throwable $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Lỗi: ' . $e->getMessage()
             ], 500);
         }
     }
-
 
     public function changeNoiBat($id)
     {

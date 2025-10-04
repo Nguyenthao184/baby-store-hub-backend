@@ -28,8 +28,6 @@ class ThanhToanDonHangRequest extends FormRequest
             'sanPhams.*.id' => 'required|string|exists:SanPham,id',
             'sanPhams.*.tenSanPham' => ['required','string','max:255'],
             'sanPhams.*.soLuong' => 'required|integer|min:1',
-            'sanPhams.*.giaBan' => 'required|numeric|min:0',
-            'sanPhams.*.giamGia' => 'nullable|numeric|min:0',
             'giamVoucher'    => ['nullable', 'numeric', 'min:0'],
             'giamDiem'       => ['nullable', 'numeric', 'min:0'],
         ];
@@ -64,8 +62,6 @@ class ThanhToanDonHangRequest extends FormRequest
             'sanPhams.*.id.exists' => 'Sản phẩm không tồn tại trong hệ thống.',
             'sanPhams.*.soLuong.required' => 'Số lượng sản phẩm là bắt buộc.',
             'sanPhams.*.soLuong.min' => 'Số lượng sản phẩm phải lớn hơn 0.',
-            'sanPhams.*.giaBan.required' => 'Giá bán sản phẩm là bắt buộc.',
-            'sanPhams.*.giaBan.min' => 'Giá bán sản phẩm không được nhỏ hơn 0.',
             'sanPhams.*.giamGia.min' => 'Giảm giá không được nhỏ hơn 0.',
         ];
     }

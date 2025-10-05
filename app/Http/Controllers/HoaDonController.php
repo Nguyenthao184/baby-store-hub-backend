@@ -75,20 +75,22 @@ class HoaDonController extends Controller
     public function update(UpdateHoaDonRequest $request, $id)
     {
         DB::beginTransaction();
-
         try {
             $data    = $request->validated();
-            $hoaDon  = HoaDon::with('donHang.chiTietDonHang')->findOrFail($id);
+            $hoaDon  = HoaDon::with('donHang.chiTietDonHang')->lockForUpdate()->findOrFail($id);
             $donHang = $hoaDon->donHang;
 
-            // ============ Cập nhật / thêm / xóa sản phẩm ============
-            // Xóa sản phẩm cũ + hoàn kho
-            if (!empty($data['xoaSanPhamIds']) && is_array($data['xoaSanPhamIds'])) {
-                $chiTiets = ChiTietDonHang::where('don_hang_id', $donHang->id)
-                    ->whereIn('san_pham_id', $data['xoaSanPhamIds'])->get();
+            $money = fn($v) => (int) round((float)$v, 0, PHP_ROUND_HALF_UP);
 
-                foreach ($chiTiets as $ct) {
-                    if ($sp = SanPham::find($ct->san_pham_id)) {
+            /* ========== XÓA SẢN PHẨM (có hoàn kho) ========== */
+            if (!empty($data['xoaSanPhamIds']) && is_array($data['xoaSanPhamIds'])) {
+                $cts = ChiTietDonHang::where('don_hang_id', $donHang->id)
+                    ->whereIn('san_pham_id', $data['xoaSanPhamIds'])
+                    ->lockForUpdate()
+                    ->get();
+
+                foreach ($cts as $ct) {
+                    if ($sp = SanPham::lockForUpdate()->find($ct->san_pham_id)) {
                         $sp->soLuongTon = (int)$sp->soLuongTon + (int)$ct->so_luong;
                         $sp->save();
                     }
@@ -98,130 +100,150 @@ class HoaDonController extends Controller
                     ->delete();
             }
 
-            // Thêm / cập nhật sản phẩm
+            /* ========== CẬP NHẬT DÒNG: CHỈ tên/ số_lượng (giữ nguyên đơn giá) ========== */
             if (!empty($data['sanPhams']) && is_array($data['sanPhams'])) {
-                $hasFlashCol = Schema::hasColumn('chitietdonhang', 'flash_sale');
-
                 foreach ($data['sanPhams'] as $item) {
-                    $sanPham = SanPham::find($item['id'] ?? null);
-                    if (!$sanPham) continue;
+                    $spId = $item['id'] ?? null;
+                    if (!$spId) continue;
 
-                    // Tồn kho theo chênh lệch
-                    $ctCu = ChiTietDonHang::where('don_hang_id', $donHang->id)
-                        ->where('san_pham_id', $sanPham->id)->first();
+                    $ct = ChiTietDonHang::where('don_hang_id', $donHang->id)
+                            ->where('san_pham_id', $spId)
+                            ->lockForUpdate()
+                            ->first();
+                    if (!$ct) continue; // không thêm mới ở màn này
 
-                    $soLuongCu  = $ctCu ? (int)$ctCu->so_luong : 0;
-                    $soLuongMoi = (int)($item['soLuong'] ?? 0);
-                    $chenhLech  = $soLuongMoi - $soLuongCu;
+                    // Số lượng mới (nếu không gửi thì giữ cũ)
+                    $qtyOld = (int)$ct->so_luong;
+                    $qtyNew = array_key_exists('soLuong', $item) ? (int)$item['soLuong'] : $qtyOld;
 
-                    if ($chenhLech > 0) {
-                        if ((int)$sanPham->soLuongTon < $chenhLech) {
-                            DB::rollBack();
-                            return response()->json(['error' => 'Không đủ hàng tồn kho cho ' . ($sanPham->tenSanPham ?? $sanPham->id)], 400);
+                    // Điều chỉnh kho theo chênh lệch
+                    $delta = $qtyNew - $qtyOld;
+                    if ($delta !== 0) {
+                        $sp = SanPham::lockForUpdate()->find($spId);
+                        if ($delta > 0) {
+                            if ((int)$sp->soLuongTon < $delta) {
+                                DB::rollBack();
+                                return response()->json(['error' => "Không đủ tồn kho cho {$sp->tenSanPham}"], 400);
+                            }
+                            $sp->soLuongTon -= $delta;
+                        } else {
+                            $sp->soLuongTon += abs($delta);
                         }
-                        $sanPham->soLuongTon -= $chenhLech;
-                    } elseif ($chenhLech < 0) {
-                        $sanPham->soLuongTon += abs($chenhLech);
-                    }
-                    $sanPham->save();
-
-                    // ===== Snapshot đơn giá theo công thức: VAT → flash → trừ giam_gia =====
-                    $giaGoc   = isset($item['giaBan']) ? (float)$item['giaBan'] : (float)$sanPham->giaBan;
-                    $vat      = isset($item['VAT']) ? (float)$item['VAT'] : (float)($sanPham->VAT ?? 8.0);
-                    $flash    = isset($item['flashSale']) ? (float)$item['flashSale'] : (float)($sanPham->flash_sale ?? 0.0);
-                    $flash    = max(0.0, min(0.9, $flash));
-                    $giamGia  = isset($item['giamGia']) ? (float)$item['giamGia'] : 0.0;
-
-                    $giaSauVat   = round($giaGoc * (1 + $vat / 100), 2);
-                    $giaSauFlash = round($giaSauVat * (1 - $flash), 2);
-                    $donGiaSauG  = max(0, round($giaSauFlash - $giamGia, 2));
-                    $thanhTien   = round($donGiaSauG * $soLuongMoi, 2);
-
-                    $payload = [
-                        'ten_san_pham' => $sanPham->tenSanPham,
-                        'gia'          => $giaSauFlash, // đơn giá sau VAT & flash (trước giảm)
-                        'vat'          => $vat,
-                        'giam_gia'     => $giamGia,
-                        'so_luong'     => $soLuongMoi,
-                        'thanh_tien'   => $thanhTien,
-                    ];
-                    if ($hasFlashCol) {
-                        $payload['flash_sale'] = $flash; // 0..1
+                        $sp->save();
                     }
 
-                    ChiTietDonHang::updateOrCreate(
-                        ['don_hang_id' => $donHang->id, 'san_pham_id' => $sanPham->id],
-                        $payload
-                    );
+                    // ✅ KHÔNG tái tính đơn giá; suy ra đơn giá NET/1sp từ snapshot hiện tại
+                    if ($qtyOld > 0) {
+                        $unitNet = $money(((float)$ct->thanh_tien) / $qtyOld); // giá đã trừ giảm theo 1sp
+                    } else {
+                        // fallback hiếm khi cần
+                        $flashRaw = (float)($ct->flash_sale ?? 0);
+                        $flash    = $flashRaw > 1 ? $flashRaw/100.0 : $flashRaw;
+                        $unitNet  = $money(max(0, (float)$ct->gia * (1 - $flash) - (float)($ct->giam_gia ?? 0)));
+                    }
+
+                    $lineTotal = $money($unitNet * $qtyNew);
+
+                    // Cập nhật: chỉ tên, số lượng, thành tiền (không đụng giá/vat/flash/giam_gia)
+                    ChiTietDonHang::where('id', $ct->id)->update([
+                        'ten_san_pham' => $item['tenSanPham'] ?? $ct->ten_san_pham,
+                        'so_luong'     => $qtyNew,
+                        'thanh_tien'   => $lineTotal,
+                    ]);
                 }
             }
 
-            // ============ TÍNH LẠI TỔNG từ snapshot chi tiết ============
+            /* ========== TÍNH LẠI TỔNG (chỉ khi qty/xóa/voucher đổi) ========== */
             $donHang->load('chiTietDonHang');
-            $chiTiets = $donHang->chiTietDonHang;
+            $cts = $donHang->chiTietDonHang;
 
-            // tam_tinh = SUM(thanh_tien)
-            $tamTinh = round($chiTiets->sum(fn($ct) => (float)$ct->thanh_tien), 2);
+            // tạm tính = SUM(thành_tiền)
+            $tamTinh = $money($cts->sum(fn($c) => (float)$c->thanh_tien));
 
-            // giam_flash_sale (VAT trước, khôi phục giá sau VAT rồi lấy chênh)
-            $giamFlashSale = round($chiTiets->sum(function ($ct) {
-                $gia   = (float)($ct->gia ?? 0);          // đã VAT & flash
-                $flash = (float)($ct->flash_sale ?? 0);   // 0..1
-                $qty   = (int)($ct->so_luong ?? 0);
-                if ($gia <= 0 || $qty <= 0 || $flash <= 0 || $flash >= 1) return 0;
-                $giaAfterVat   = $gia / (1 - $flash);
-                return ($giaAfterVat - $gia) * $qty;
-            }), 2);
+            // giảm flash = Σ( (unitAfterVat - unitAfterFlash) * qty )
+            $giamFlashSale = $money($cts->sum(function ($c) use ($money) {
+                $qty = (int)$c->so_luong;
+                if ($qty <= 0) return 0;
 
-            // tong_vat (tính trên giá sau VAT trước flash)
-            $tongVAT = round($chiTiets->sum(function ($ct) {
-                $giaAfterFlash = (float)($ct->gia ?? 0);
-                $vat           = (float)($ct->vat ?? 0);
-                $flash         = (float)($ct->flash_sale ?? 0);
-                $qty           = (int)($ct->so_luong ?? 0);
-                if ($vat <= 0 || $qty <= 0 || $giaAfterFlash <= 0) return 0;
-                $den = (1 - $flash) > 0 ? (1 - $flash) : 1;
-                $giaAfterVat = $giaAfterFlash / $den; // giá sau VAT trước flash
-                return ($giaAfterVat * $vat / (100 + $vat)) * $qty;
-            }), 2);
+                // khôi phục đơn giá NET/1sp và afterVAT/1sp từ snapshot
+                $perUnitDisc    = (float)($c->giam_gia ?? 0);
+                $unitNet        = $money(((float)$c->thanh_tien / $qty)); // đã trừ giảm
+                $unitAfterFlash = $unitNet + $perUnitDisc;
 
-            // Nhận các giá trị từ request (nếu có), nhưng ưu tiên dùng snapshot
-            $giamVoucher   = (float)($data['giamVoucher'] ?? $data['giamGiaSanPham'] ?? $hoaDon->giam_voucher ?? 0);
-            $giamDiem      = (float)($data['giamDiem'] ?? $hoaDon->giam_diem ?? 0);
-            $phiVanChuyen  = (float)($hoaDon->phi_van_chuyen ?? 0); // offline có thể là 0
+                $flashRaw  = (float)($c->flash_sale ?? 0);
+                $flash     = $flashRaw > 1 ? $flashRaw/100.0 : $flashRaw;
+                $unitAfterVat = ($flash > 0 && $flash < 1)
+                    ? $money($unitAfterFlash / (1 - $flash))
+                    : (float)($c->gia ?? 0);
 
-            // tong_thanh_toan theo DonHangSeeder
-            $tongThanhToan = round($tamTinh - $giamVoucher - $giamDiem + $phiVanChuyen, 2);
+                return $money(($unitAfterVat - $unitAfterFlash) * $qty);
+            }));
 
-            // ============ Cập nhật DonHang & HoaDon để đồng bộ ============
+            // VAT = Σ( unitAfterVat * rate/(1+rate) * qty )
+            $tongVAT = $money($cts->sum(function ($c) use ($money) {
+                $qty = (int)$c->so_luong;
+                if ($qty <= 0) return 0;
+
+                $rateRaw  = (float)($c->vat ?? 0);
+                $rate     = $rateRaw > 1 ? $rateRaw/100.0 : $rateRaw;
+
+                $perUnitDisc    = (float)($c->giam_gia ?? 0);
+                $unitNet        = $money(((float)$c->thanh_tien / $qty));
+                $unitAfterFlash = $unitNet + $perUnitDisc;
+
+                $flashRaw  = (float)($c->flash_sale ?? 0);
+                $flash     = $flashRaw > 1 ? $flashRaw/100.0 : $flashRaw;
+
+                $unitAfterVat = ($flash > 0 && $flash < 1)
+                    ? $money($unitAfterFlash / (1 - $flash))
+                    : (float)($c->gia ?? 0);
+
+                if ($unitAfterVat <= 0 || $rate <= 0) return 0;
+                return $money($unitAfterVat * ($rate/(1+$rate)) * $qty);
+            }));
+
+            // Voucher: CHỈ khi FE gửi mới đổi, còn lại giữ nguyên
+            $giamVoucher  = isset($data['giamVoucher']) ? $money($data['giamVoucher']) : (int)$hoaDon->giam_voucher;
+            // Các khoản khác giữ như cũ
+            $giamDiem     = (int)($hoaDon->giam_diem ?? 0);
+            $phiVC        = isset($data['phiVanChuyen']) ? $money($data['phiVanChuyen']) : (int)$hoaDon->phi_van_chuyen;
+
+            $tongThanhToan = $money($tamTinh - $giamVoucher - $giamDiem + $phiVC);
+
+            /* ========== CẬP NHẬT ĐƠN HÀNG: các field cho phép ========== */
             $donHang->update([
-                'tam_tinh'         => $tamTinh,
-                'giam_voucher'     => $giamVoucher,
-                'giam_diem'        => $giamDiem,
-                'phi_van_chuyen'   => $phiVanChuyen,
-                'tong_thanh_toan'  => $tongThanhToan,
-                'ghi_chu'          => $data['ghiChu'] ?? $donHang->ghi_chu,
-                'trang_thai'       => $data['trangThai'] ?? $donHang->trang_thai,
+                'ten_nguoi_nhan'    => $data['tenNguoiNhan']   ?? $donHang->ten_nguoi_nhan,
+                'so_dien_thoai'     => $data['soDienThoai']    ?? $donHang->so_dien_thoai,
+                'don_vi_van_chuyen' => $data['donViVanChuyen'] ?? $donHang->don_vi_van_chuyen,
+                'phi_van_chuyen'    => $phiVC,
+                'dia_chi'           => $data['diaChi']         ?? $donHang->dia_chi,
+                'ghi_chu'           => $data['ghiChu']         ?? $donHang->ghi_chu,
+
+                'tam_tinh'          => $tamTinh,
+                'giam_voucher'      => $giamVoucher,
+                // giam_diem giữ nguyên
+                'tong_thanh_toan'   => $tongThanhToan,
+                'ngay_cap_nhat'     => now(),
             ]);
 
+            /* ========== CẬP NHẬT HÓA ĐƠN (đồng bộ) ========== */
             $hoaDon->update([
-                'tong_tien_hang'         => $tamTinh,        // = SUM thanh_tien
-                'giam_flash_sale'        => $giamFlashSale,  // tính tự động
-                'giam_voucher'           => $giamVoucher,
-                'giam_diem'              => $giamDiem,
-                'tong_vat'               => $tongVAT,        // tính theo chính sách VAT trước flash
-                'tong_thanh_toan'        => $tongThanhToan,  // khớp đơn hàng
-                'phuong_thuc_thanh_toan' => $data['phuongThucThanhToan'] ?? $hoaDon->phuong_thuc_thanh_toan,
-                // 'phi_van_chuyen'      => $phiVanChuyen,    // giữ như hiện có; nếu muốn ép 0 cho offline thì mở
+                'tong_tien_hang'   => $tamTinh,
+                'giam_flash_sale'  => $giamFlashSale,
+                'tong_vat'         => $tongVAT,
+                'giam_voucher'     => $giamVoucher,
+                'giam_diem'        => $giamDiem,
+                'phi_van_chuyen'   => $phiVC,
+                'tong_thanh_toan'  => $tongThanhToan,
             ]);
 
             DB::commit();
 
             return response()->json([
                 'message' => 'Cập nhật hóa đơn thành công',
-                'data'    => $hoaDon->load('donHang.chiTietDonHang')
+                'data'    => $hoaDon->load('donHang.chiTietDonHang'),
             ]);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             DB::rollBack();
             return response()->json(['error' => $e->getMessage()], 500);
         }

@@ -21,7 +21,7 @@ class ThanhToanDonHangRequest extends FormRequest
     {
         return [
             'khachHang_id' => 'required|string|exists:KhachHang,id',
-            'phuongThuc' => 'required|string|in:cod,bank,card',
+            'phuongThuc' => 'required|string|in:cash,bank,card',
             'tenNguoiNhan' => 'required|string|max:150',
             'soDienThoai' => 'required|string|regex:/^0[0-9]{9,10}$/',
             'sanPhams' => 'required|array|min:1',

@@ -232,8 +232,8 @@ class DonHangController extends Controller
                 'don_hang' => [
                     'id'                => $don->id,
                     'ma_don_hang'       => $don->ma_don_hang,
-                    'khach_hang'        => $don->khachHang->hoTen ?? 'Khách lẻ',
-                    'so_dien_thoai'     => $don->so_dien_thoai ?: (optional($don->khachHang)->sdt ?? null),
+                    'khach_hang'        => $don->ten_nguoi_nhan,
+                    'so_dien_thoai'     => $don->so_dien_thoai,
                     'tong_thanh_toan'   => (float) $don->tong_thanh_toan,  // lấy trực tiếp từ bảng đơn
                     'trang_thai'        => $don->trang_thai,
                     'dia_chi'           => $don->dia_chi,
@@ -393,8 +393,8 @@ class DonHangController extends Controller
                 'don_hang' => [
                     'id'                => $don->id,
                     'ma_don_hang'       => $don->ma_don_hang,
-                    'khach_hang'        => $don->khachHang->hoTen ?? 'Khách lẻ',
-                    'so_dien_thoai'     => $don->so_dien_thoai ?: (optional($don->khachHang)->sdt ?? null),
+                    'khach_hang'        => $don->ten_nguoi_nhan,
+                    'so_dien_thoai'     => $don->so_dien_thoai,
                     'tong_thanh_toan'   => (float) $don->tong_thanh_toan,
                     'trang_thai'        => $don->trang_thai,
                     'dia_chi'           => $don->dia_chi,
@@ -407,7 +407,7 @@ class DonHangController extends Controller
         });
     }
 
-    // Danh sách CHO_LAY_HANG – đọc tiền từ bảng đơn hàng + thêm số điện thoại
+    // Danh sách CHO_LAY_HANG 
     public function dsDonHang(Request $request)
     {
         // ----- Parse bộ lọc thời gian -----
@@ -428,7 +428,6 @@ class DonHangController extends Controller
         }
 
         $q = DonHang::with([
-                'khachHang:id,hoTen,sdt',
                 'chiTietDonHang' => function ($q) {
                     $q->select([
                         'id','don_hang_id','san_pham_id','ten_san_pham',
@@ -502,8 +501,8 @@ class DonHangController extends Controller
             return [
                 'id'                      => $don->id,
                 'ma_don_hang'             => $don->ma_don_hang,
-                'ten_khach_hang'          => optional($don->khachHang)->hoTen ?? 'Khách lẻ',
-                'so_dien_thoai'           => $don->so_dien_thoai ?: (optional($don->khachHang)->sdt ?? null),
+                'ten_khach_hang'          => $don->ten_nguoi_nhan,
+                'so_dien_thoai'           => $don->so_dien_thoai,
                 'tong_thanh_toan'         => $displayTongThanhToan,
                 'trang_thai'              => $don->trang_thai,
                 'dia_chi_giao_hang'       => $don->dia_chi,
@@ -529,11 +528,10 @@ class DonHangController extends Controller
         ], 200);
     }
 
-    // Danh sách CHO_XU_LY – đọc tiền từ bảng đơn hàng + thêm số điện thoại
+    // Danh sách CHO_XU_LY 
     public function dsChoXuLy(Request $request)
     {
         $orders = DonHang::with([
-                'khachHang:id,hoTen,sdt',
                 'chiTietDonHang' => function ($q) {
                     $q->select([
                         'id', 'don_hang_id', 'san_pham_id',
@@ -563,8 +561,8 @@ class DonHangController extends Controller
                 'ma_van_don'      => $don->ma_van_don,
                 'ngay_tao'        => $don->ngay_tao,
                 'tong_thanh_toan' => (float) ($don->tong_thanh_toan ?? 0),
-                'ten_khach_hang'  => optional($don->khachHang)->hoTen ?? 'Khách lẻ',
-                'so_dien_thoai'   => $don->so_dien_thoai ?: (optional($don->khachHang)->sdt ?? null),
+                'ten_khach_hang'  => $don->ten_nguoi_nhan,
+                'so_dien_thoai'   => $don->so_dien_thoai,
                 'dia_chi'         => $don->dia_chi,
                 'san_pham'        => $items,
             ];

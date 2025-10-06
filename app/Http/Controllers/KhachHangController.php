@@ -50,6 +50,8 @@ class KhachHangController extends Controller
         return response()->json([
             'message' => 'Thêm khách hàng thành công',
             'id'      => $kh->id,
+            'hoTen' => $kh->hoTen,
+            'sdt'   => $kh->sdt,
         ], 201);
     }
 }

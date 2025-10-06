@@ -17,7 +17,7 @@ class HoaDonController extends Controller
      */
     public function index(Request $request)
     {
-        $query = HoaDon::query()->with('donHang.khachHang');
+        $query = HoaDon::query()->with('donHang');
 
         // Tìm theo mã hóa đơn
         if ($request->filled('maHoaDon')) {
@@ -327,9 +327,9 @@ class HoaDonController extends Controller
                     'ngayXuat'             => $hoaDon->ngay_xuat,
                 ],
                 'khachHang' => [
-                    'ten'         => $donHang->khachHang->hoTen ?? 'Khách lẻ',
-                    'soDienThoai' => $donHang->khachHang->sdt ?? 'Không có',
-                    'diaChi'      => $donHang->khachHang->diaChi ?? 'Không có'
+                    'ten'         => $donHang->ten_nguoi_nhan,
+                    'soDienThoai' => $donHang->so_dien_thoai,
+                    'diaChi'      => $donHang->dia_chi
                 ],
                 'trangThai' => $donHang->trang_thai,
                 'ghiChu'    => $donHang->ghi_chu,
